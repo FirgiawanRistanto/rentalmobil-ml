@@ -1,7 +1,12 @@
-import { pgTable, uuid, text, timestamp, boolean, integer, pgEnum } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { date, integer, jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
 export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']);
+export const carUnitStatusEnum = pgEnum('car_unit_status', ['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
+export const tripTypeEnum = pgEnum('trip_type', ['DALAM_KOTA', 'LUAR_KOTA']);
+export const demandLevelEnum = pgEnum('demand_level', ['sepi', 'normal', 'ramai']);
+export const pricingQuoteStatusEnum = pgEnum('pricing_quote_status', ['ACTIVE', 'ACCEPTED', 'EXPIRED', 'INVALIDATED']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -27,14 +32,99 @@ export const cars = pgTable('cars', {
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 });
 
+export const carUnits = pgTable('car_units', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  carId: uuid('carId').references(() => cars.id).notNull(),
+  plateNumber: text('plateNumber').notNull().unique(),
+  status: carUnitStatusEnum('status').default('ACTIVE').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const pricingQuotes = pgTable('pricing_quotes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  carId: uuid('carId').references(() => cars.id).notNull(),
+  userId: uuid('userId').references(() => users.id),
+  pickupDate: timestamp('pickupDate', { mode: 'date' }).notNull(),
+  returnDate: timestamp('returnDate', { mode: 'date' }).notNull(),
+  durationDays: integer('durationDays').notNull(),
+  tripType: tripTypeEnum('tripType').notNull(),
+  basePricePerDay: integer('basePricePerDay').notNull(),
+  categoryActiveUnits: integer('categoryActiveUnits').notNull(),
+  categoryAvailableUnits: integer('categoryAvailableUnits').notNull(),
+  availabilityRatio: numeric('availabilityRatio', { precision: 8, scale: 4 }).notNull(),
+  utilizationRate: numeric('utilizationRate', { precision: 8, scale: 4 }).notNull(),
+  demandLevel: demandLevelEnum('demandLevel').notNull(),
+  isWeekend: boolean('isWeekend').notNull(),
+  isHoliday: boolean('isHoliday').notNull(),
+  isPeakSeason: boolean('isPeakSeason').notNull(),
+  bookingLeadDays: integer('bookingLeadDays').notNull(),
+  predictedPriceAdjustmentPct: numeric('predictedPriceAdjustmentPct', { precision: 10, scale: 6 }).notNull(),
+  dynamicPriceRawPerDay: integer('dynamicPriceRawPerDay').notNull(),
+  dynamicPriceDisplayPerDay: integer('dynamicPriceDisplayPerDay').notNull(),
+  totalInvoiceDisplay: integer('totalInvoiceDisplay').notNull(),
+  pricingReasons: jsonb('pricingReasons').notNull(),
+  modelVersion: text('modelVersion').notNull(),
+  status: pricingQuoteStatusEnum('status').default('ACTIVE').notNull(),
+  expiresAt: timestamp('expiresAt', { mode: 'date' }).default(sql`now() + interval '15 minutes'`).notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});
+
 export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('userId').references(() => users.id).notNull(),
   carId: uuid('carId').references(() => cars.id).notNull(),
+  carUnitId: uuid('carUnitId').references(() => carUnits.id),
   startDate: timestamp('startDate', { mode: 'date' }).notNull(),
   endDate: timestamp('endDate', { mode: 'date' }).notNull(),
+  tripType: tripTypeEnum('tripType').default('DALAM_KOTA').notNull(),
+  phoneNumber: text('phoneNumber'),
+  pickupAddress: text('pickupAddress'),
+  notes: text('notes'),
+  pricingQuoteId: uuid('pricingQuoteId').references(() => pricingQuotes.id),
   totalPrice: integer('totalPrice').notNull(),
   status: bookingStatusEnum('status').default('PENDING').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const bookingPriceSnapshots = pgTable('booking_price_snapshots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('bookingId').references(() => bookings.id).notNull().unique(),
+  pricingQuoteId: uuid('pricingQuoteId').references(() => pricingQuotes.id),
+  basePricePerDay: integer('basePricePerDay').notNull(),
+  categoryActiveUnits: integer('categoryActiveUnits').notNull(),
+  categoryAvailableUnits: integer('categoryAvailableUnits').notNull(),
+  availabilityRatio: numeric('availabilityRatio', { precision: 8, scale: 4 }).notNull(),
+  utilizationRate: numeric('utilizationRate', { precision: 8, scale: 4 }).notNull(),
+  demandLevel: demandLevelEnum('demandLevel').notNull(),
+  predictedPriceAdjustmentPct: numeric('predictedPriceAdjustmentPct', { precision: 10, scale: 6 }).notNull(),
+  dynamicPriceRawPerDay: integer('dynamicPriceRawPerDay').notNull(),
+  dynamicPriceDisplayPerDay: integer('dynamicPriceDisplayPerDay').notNull(),
+  totalInvoiceDisplay: integer('totalInvoiceDisplay').notNull(),
+  pricingReasons: jsonb('pricingReasons').notNull(),
+  modelVersion: text('modelVersion').notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const holidays = pgTable('holidays', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  date: date('date', { mode: 'date' }).notNull().unique(),
+  name: text('name').notNull(),
+  isActive: boolean('isActive').default(true).notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});
+
+export const pricingModelVersions = pgTable('pricing_model_versions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  version: text('version').notNull().unique(),
+  targetName: text('targetName').notNull(),
+  artifactPath: text('artifactPath').notNull(),
+  metadata: jsonb('metadata'),
+  trainedAt: timestamp('trainedAt', { mode: 'date' }),
+  isActive: boolean('isActive').default(false).notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 });
