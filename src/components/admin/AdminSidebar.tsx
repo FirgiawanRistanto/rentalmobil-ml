@@ -1,10 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { authClient } from '@/lib/auth-client';
+import { signOutCurrentUser } from '@/lib/auth-ui';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const session = authClient.useSession();
+  const user = session.data?.user as { name?: string | null; email?: string | null } | undefined;
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const displayName = user?.name || 'Admin';
+  const displayEmail = user?.email || 'Akun admin';
+
+  async function handleSignOut() {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    try {
+      await signOutCurrentUser(authClient);
+      router.push('/');
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
 
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: 'dashboard' },
@@ -62,15 +86,24 @@ export default function AdminSidebar() {
           <span className="text-sm font-medium">Settings</span>
         </Link>
         
-        <div className="flex items-center gap-3 px-4 py-2 mt-2 cursor-pointer group">
+        <div className="flex items-center gap-3 px-4 py-2 mt-2 group">
           <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-white dark:border-slate-800 overflow-hidden shadow-sm group-hover:border-primary transition-colors">
             <img alt="Admin Avatar" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqUvJnPNDhwoZuxZR-Yzud-32ZKi8QWY7jNAoBbzvrPBXiUBkspvijruhbCFv5BPEnvDEdL7Hk9l4Xj6dswep9Fm9e-MroY34VOtS_Qi3FU20m5xS5GQ1BNLtVRcvEF_1hpc2MTT6DLpYIN_JmTiG0jPj8SEu3cC6oS9p6twmowvAfyhPmPgnleW4vUcAs9sqA5-SPlCtgm8wmnDa4SMvhn3YEjQ2eGVTU6Q5om3FC2lY8NKjaMzmmpO4OPDgRskM_pain9QRH2g"/>
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-sm font-bold leading-none text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">Super Admin</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 truncate">admin@besan.id</p>
+            <p className="text-sm font-bold leading-none text-slate-900 dark:text-white truncate group-hover:text-primary transition-colors">{displayName}</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 truncate">{displayEmail}</p>
           </div>
         </div>
+        <button
+          className="mt-3 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-70 dark:text-slate-400 dark:hover:bg-slate-800"
+          disabled={isSigningOut}
+          onClick={handleSignOut}
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[20px]">logout</span>
+          {isSigningOut ? 'Keluar...' : 'Logout'}
+        </button>
       </div>
     </aside>
   );

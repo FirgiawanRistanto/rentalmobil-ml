@@ -1,8 +1,51 @@
 'use client';
 
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
+import { AuthUiError, getCallbackURLFromSearch, loginCustomer } from '@/lib/auth-ui';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await loginCustomer(
+        {
+          email: String(formData.get('email') ?? ''),
+          password: String(formData.get('password') ?? ''),
+          rememberMe: formData.get('remember-me') === 'on',
+        },
+        authClient,
+      );
+
+      const redirectTo = getCallbackURLFromSearch(window.location.search);
+      router.push(redirectTo);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof AuthUiError
+          ? error.message
+          : 'Gagal masuk. Silakan coba lagi.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-background-light dark:bg-background-dark antialiased">
       {/* Left Side: Professional Image & Branding */}
@@ -46,7 +89,7 @@ export default function LoginPage() {
             <p className="text-slate-600 dark:text-slate-400">Silakan masukkan detail Anda untuk mengakses akun</p>
           </div>
           
-          <form className="mt-8 space-y-6" onSubmit={(e) => { e.preventDefault(); window.location.href = '/katalog'; }}>
+          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5" htmlFor="email">Alamat Email</label>
@@ -77,8 +120,18 @@ export default function LoginPage() {
             </div>
             
             <div className="space-y-4">
-              <button className="group relative flex w-full justify-center rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:-translate-y-0.5 active:scale-95" type="submit">
-                Masuk
+              {errorMessage && (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                  {errorMessage}
+                </p>
+              )}
+
+              <button
+                className="group relative flex w-full justify-center rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white transition-all hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 hover:-translate-y-0.5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0"
+                disabled={isSubmitting}
+                type="submit"
+              >
+                {isSubmitting ? 'Memproses...' : 'Masuk'}
               </button>
               
               <div className="relative">

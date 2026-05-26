@@ -1,8 +1,51 @@
 'use client';
 
+import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { authClient } from '@/lib/auth-client';
+import { AuthUiError, registerCustomer } from '@/lib/auth-ui';
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      await registerCustomer(
+        {
+          name: String(formData.get('name') ?? ''),
+          email: String(formData.get('email') ?? ''),
+          password: String(formData.get('password') ?? ''),
+          confirmPassword: String(formData.get('confirmPassword') ?? ''),
+        },
+        authClient,
+      );
+
+      router.push('/dashboard');
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof AuthUiError
+          ? error.message
+          : 'Gagal membuat akun. Silakan coba lagi.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-background-light dark:bg-background-dark antialiased">
       {/* Left Side: Form Section */}
@@ -20,12 +63,12 @@ export default function RegisterPage() {
             <p className="mt-2 text-slate-600 dark:text-slate-400 relative z-10">Bergabunglah dengan Besan Rental Mobil Lampung untuk memulai perjalanan Anda.</p>
           </div>
           
-          <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); window.location.href = '/login'; }}>
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="full-name">Nama Lengkap</label>
+              <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="name">Nama Lengkap</label>
               <div className="mt-2">
-                <input className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="full-name" name="full-name" placeholder="Nama Lengkap" required type="text"/>
+                <input autoComplete="name" className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="name" name="name" placeholder="Nama Lengkap" required type="text"/>
               </div>
             </div>
             
@@ -37,33 +80,31 @@ export default function RegisterPage() {
               </div>
             </div>
             
-            {/* Phone Number */}
-            <div>
-              <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="phone">Nomor Telepon</label>
-              <div className="mt-2">
-                <input className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="phone" name="phone" placeholder="+62 812 3456 7890" required type="tel"/>
-              </div>
-            </div>
-            
             {/* Password Grid */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="password">Kata Sandi</label>
                 <div className="mt-2">
-                  <input className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="password" name="password" placeholder="••••••••" required type="password"/>
+                  <input autoComplete="new-password" className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="password" name="password" placeholder="••••••••" required type="password"/>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="confirm-password">Konfirmasi Kata Sandi</label>
+                <label className="block text-sm font-semibold leading-6 text-slate-900 dark:text-slate-200" htmlFor="confirmPassword">Konfirmasi Kata Sandi</label>
                 <div className="mt-2">
-                  <input className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="confirm-password" name="confirm-password" placeholder="••••••••" required type="password"/>
+                  <input autoComplete="new-password" className="block w-full rounded-xl border border-slate-200 py-3 px-4 text-slate-900 shadow-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary focus:border-primary outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white sm:text-sm sm:leading-6 transition-colors" id="confirmPassword" name="confirmPassword" placeholder="••••••••" required type="password"/>
                 </div>
               </div>
             </div>
             
+            {errorMessage ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {errorMessage}
+              </p>
+            ) : null}
+            
             <div className="pt-4">
-              <button className="flex w-full justify-center rounded-xl bg-primary px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-primary/90 hover:-translate-y-0.5 active:scale-95 transition-all" type="submit">
-                Daftar Sekarang
+              <button className="flex w-full justify-center rounded-xl bg-primary px-3 py-3.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-primary/90 hover:-translate-y-0.5 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 transition-all" disabled={isSubmitting} type="submit">
+                {isSubmitting ? 'Memproses...' : 'Daftar Sekarang'}
               </button>
             </div>
           </form>

@@ -1,8 +1,33 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { authClient } from '@/lib/auth-client';
+import { signOutCurrentUser } from '@/lib/auth-ui';
 
 export default function UserDashboard() {
+  const router = useRouter();
+  const session = authClient.useSession();
+  const user = session.data?.user as { name?: string | null; email?: string | null } | undefined;
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const displayName = user?.name || user?.email || 'Customer';
+
+  async function handleSignOut() {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    try {
+      await signOutCurrentUser(authClient);
+      router.push('/');
+      router.refresh();
+    } finally {
+      setIsSigningOut(false);
+    }
+  }
+
   return (
     <div className="layout-container flex h-full grow flex-col font-display text-slate-900 dark:text-slate-100 min-h-screen bg-background-light dark:bg-background-dark">
       <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3 lg:px-40">
@@ -31,9 +56,20 @@ export default function UserDashboard() {
           </label>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex flex-col justify-center">
-              <p className="text-sm font-bold leading-none">Ahmad Fauzi</p>
+              <p className="text-sm font-bold leading-none">{displayName}</p>
+              {user?.email ? (
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
+              ) : null}
             </div>
-            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 ring-2 ring-primary/10" data-alt="User profile avatar of Ahmad Fauzi" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKtetH9kdRGYYg_p5FgiN9EEhy4qoPa-tISCDNhgWCB3jH8eFJLDQWcHbIUZucRxzPj-iYndH4z91mXD3xBz7OFRuR5kmWi7lqCJnyqJ3cJUJRpj2CEAaOVg3AozE_upZsxZwYEJM0eryX4knwmb-XYwa809F-Lg-GYbVCpEGF22mKgxK2hYo2jvf_hVCoJ8u_8A_p3BG85OfHZOBR6gV3togtJ9m-5Bv6njXOvx0ypMccxyLfwwYZ2X0xk1Ld_qrQ-S7EFKYIeQ")' }}></div>
+            <div className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 ring-2 ring-primary/10" data-alt="User profile avatar" style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKtetH9kdRGYYg_p5FgiN9EEhy4qoPa-tISCDNhgWCB3jH8eFJLDQWcHbIUZucRxzPj-iYndH4z91mXD3xBz7OFRuR5kmWi7lqCJnyqJ3cJUJRpj2CEAaOVg3AozE_upZsxZwYEJM0eryX4knwmb-XYwa809F-Lg-GYbVCpEGF22mKgxK2hYo2jvf_hVCoJ8u_8A_p3BG85OfHZOBR6gV3togtJ9m-5Bv6njXOvx0ypMccxyLfwwYZ2X0xk1Ld_qrQ-S7EFKYIeQ")' }}></div>
+            <button
+              className="hidden sm:flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-70 dark:border-slate-700 dark:text-slate-300"
+              disabled={isSigningOut}
+              onClick={handleSignOut}
+              type="button"
+            >
+              {isSigningOut ? 'Keluar...' : 'Logout'}
+            </button>
           </div>
         </div>
       </header>
@@ -42,7 +78,7 @@ export default function UserDashboard() {
         <div className="layout-content-container flex flex-col max-w-[1200px] flex-1 gap-8">
           <section className="flex flex-wrap justify-between items-start gap-4">
             <div className="flex flex-col gap-2">
-              <h1 className="text-slate-900 dark:text-white text-3xl font-black leading-tight tracking-tight">Selamat datang, Ahmad Fauzi</h1>
+              <h1 className="text-slate-900 dark:text-white text-3xl font-black leading-tight tracking-tight">Selamat datang, {displayName}</h1>
               <p className="text-slate-500 dark:text-slate-400 text-base font-normal leading-normal">Kelola penyewaan mobil Anda dengan mudah di dashboard Besan Rental Mobil Lampung.</p>
             </div>
             <Link href="/katalog" className="flex min-w-[160px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl h-12 px-6 bg-primary text-white text-sm font-bold transition-all hover:bg-primary/90 shadow-lg shadow-primary/20 hover:-translate-y-0.5 active:scale-95">
