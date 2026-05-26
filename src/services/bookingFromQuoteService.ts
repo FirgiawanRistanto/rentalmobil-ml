@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { bookingPriceSnapshots, bookings, cars, carUnits, holidays, pricingQuotes } from '../db/schema';
 import {
@@ -17,6 +17,7 @@ export type BookingFromQuoteErrorCode =
   | 'QUOTE_NOT_OWNED_BY_USER'
   | 'QUOTE_EXPIRED'
   | 'QUOTE_NOT_ACTIVE'
+  | 'QUOTE_ALREADY_USED'
   | 'SELECTED_CAR_UNAVAILABLE'
   | 'QUOTE_REPRICE_REQUIRED'
   | 'CAR_UNIT_ALLOCATION_FAILED'
@@ -34,8 +35,8 @@ export class BookingFromQuoteError extends Error {
 
 export interface CreateBookingFromQuoteInput {
   quoteId: string;
-  phoneNumber?: string | null;
-  pickupAddress?: string | null;
+  phoneNumber: string;
+  pickupAddress: string;
   notes?: string | null;
 }
 
@@ -49,6 +50,7 @@ export interface BookingFromQuoteResult {
   quoteId: string;
   quoteStatus: 'ACCEPTED';
   carUnitAllocated: boolean;
+  reservationExpiresAt: string;
   rental: {
     pickupDate: string;
     returnDate: string;
@@ -109,6 +111,7 @@ interface InsertBookingInput {
   pricingQuoteId: string;
   totalPrice: number;
   createdAt: Date;
+  reservationExpiresAt: Date;
 }
 
 interface InsertBookingSnapshotInput {
@@ -122,7 +125,12 @@ export interface BookingFromQuoteTransactionRepository {
   markQuoteExpired(quoteId: string, updatedAt: Date): Promise<void>;
   markQuoteInvalidated(quoteId: string, updatedAt: Date): Promise<void>;
   acceptQuote(quoteId: string, userId: string, updatedAt: Date): Promise<void>;
-  allocateAvailableCarUnit(carId: string, pickupDate: Date, returnDate: Date): Promise<string | null>;
+  allocateAvailableCarUnit(
+    carId: string,
+    pickupDate: Date,
+    returnDate: Date,
+    referenceDate: Date,
+  ): Promise<string | null>;
   insertBooking(input: InsertBookingInput): Promise<{ id: string; status: 'PENDING' }>;
   insertSnapshot(input: InsertBookingSnapshotInput): Promise<void>;
   createPricingContextRepository(): PricingContextRepository;
@@ -144,12 +152,40 @@ interface BookingFromQuoteServiceDependencies {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_REQUEST_FIELDS = new Set(['quoteId', 'phoneNumber', 'pickupAddress', 'notes']);
+const PHONE_NUMBER_MAX_LENGTH = 32;
+const PICKUP_ADDRESS_MAX_LENGTH = 500;
+const NOTES_MAX_LENGTH = 1000;
+export const PENDING_RESERVATION_EXPIRY_MINUTES = 30;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function optionalText(value: unknown, fieldName: string): string | null {
+function validateTextLength(value: string, fieldName: string, maxLength: number): string {
+  if (value.length > maxLength) {
+    throw new BookingFromQuoteError(
+      'INVALID_BOOKING_REQUEST',
+      `${fieldName} maksimal ${maxLength} karakter.`,
+    );
+  }
+
+  return value;
+}
+
+function requiredText(value: unknown, fieldName: string, maxLength: number): string {
+  if (typeof value !== 'string') {
+    throw new BookingFromQuoteError('INVALID_BOOKING_REQUEST', `${fieldName} wajib diisi.`);
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    throw new BookingFromQuoteError('INVALID_BOOKING_REQUEST', `${fieldName} wajib diisi.`);
+  }
+
+  return validateTextLength(trimmed, fieldName, maxLength);
+}
+
+function optionalText(value: unknown, fieldName: string, maxLength: number): string | null {
   if (value === undefined || value === null) {
     return null;
   }
@@ -159,7 +195,7 @@ function optionalText(value: unknown, fieldName: string): string | null {
   }
 
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return trimmed.length > 0 ? validateTextLength(trimmed, fieldName, maxLength) : null;
 }
 
 export function isBlockingBookingStatusForAllocation(status: string): boolean {
@@ -195,9 +231,9 @@ export function validateCreateBookingFromQuoteRequest(value: unknown): CreateBoo
 
   return {
     quoteId: value.quoteId,
-    phoneNumber: optionalText(value.phoneNumber, 'phoneNumber'),
-    pickupAddress: optionalText(value.pickupAddress, 'pickupAddress'),
-    notes: optionalText(value.notes, 'notes'),
+    phoneNumber: requiredText(value.phoneNumber, 'phoneNumber', PHONE_NUMBER_MAX_LENGTH),
+    pickupAddress: requiredText(value.pickupAddress, 'pickupAddress', PICKUP_ADDRESS_MAX_LENGTH),
+    notes: optionalText(value.notes, 'notes', NOTES_MAX_LENGTH),
   };
 }
 
@@ -207,6 +243,17 @@ function toNumber(value: string | number): number {
 
 function normalizeRatio(value: number): string {
   return value.toFixed(4);
+}
+
+function addMinutes(date: Date, minutes: number): Date {
+  return new Date(date.getTime() + minutes * 60 * 1000);
+}
+
+function isPricingQuoteUniqueViolation(error: unknown): boolean {
+  const maybeError = error as { code?: unknown; constraint?: unknown; detail?: unknown };
+  const text = `${String(maybeError.constraint ?? '')} ${String(maybeError.detail ?? '')}`;
+
+  return maybeError.code === '23505' && text.includes('bookings_pricing_quote_id_unique_non_null');
 }
 
 function contextMismatchReasons(quote: PricingQuoteForBooking, context: PricingContext): string[] {
@@ -332,7 +379,7 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
               .where(eq(pricingQuotes.id, quoteId));
           },
 
-          async allocateAvailableCarUnit(carId, pickupDate, returnDate) {
+          async allocateAvailableCarUnit(carId, pickupDate, returnDate, referenceDate) {
             const result = await tx.execute(sql`
               select cu.id
               from car_units cu
@@ -342,7 +389,16 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
                   select 1
                   from bookings b
                   where b."carUnitId" = cu.id
-                    and b.status in ('PENDING', 'CONFIRMED')
+                    and (
+                      b.status = 'CONFIRMED'
+                      or (
+                        b.status = 'PENDING'
+                        and (
+                          b."reservationExpiresAt" is null
+                          or b."reservationExpiresAt" > ${referenceDate}
+                        )
+                      )
+                    )
                     and b."startDate" < ${returnDate}
                     and b."endDate" > ${pickupDate}
                 )
@@ -371,6 +427,7 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
                 pricingQuoteId: input.pricingQuoteId,
                 totalPrice: input.totalPrice,
                 status: 'PENDING',
+                reservationExpiresAt: input.reservationExpiresAt,
                 createdAt: input.createdAt,
                 updatedAt: input.createdAt,
               })
@@ -408,8 +465,20 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
               pickupDate: Date,
               returnDate: Date,
               statuses: readonly BlockingBookingStatus[],
+              referenceDate: Date,
             ) => and(
-              inArray(bookings.status, [...statuses]),
+              or(
+                statuses.includes('CONFIRMED') ? eq(bookings.status, 'CONFIRMED') : undefined,
+                statuses.includes('PENDING')
+                  ? and(
+                    eq(bookings.status, 'PENDING'),
+                    or(
+                      isNull(bookings.reservationExpiresAt),
+                      gt(bookings.reservationExpiresAt, referenceDate),
+                    ),
+                  )
+                  : undefined,
+              ),
               lt(bookings.startDate, returnDate),
               gt(bookings.endDate, pickupDate),
             );
@@ -445,7 +514,7 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
 
                 return Number(row?.count ?? 0);
               },
-              async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses) {
+              async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
                 const [row] = await tx
                   .select({ count: sql<number>`count(distinct ${bookings.carUnitId})::int` })
                   .from(bookings)
@@ -454,12 +523,12 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
                   .where(and(
                     eq(cars.category, category),
                     eq(carUnits.status, 'ACTIVE'),
-                    overlapFilter(pickupDate, returnDate, statuses),
+                    overlapFilter(pickupDate, returnDate, statuses, referenceDate),
                   ));
 
                 return Number(row?.count ?? 0);
               },
-              async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses) {
+              async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses, referenceDate) {
                 const [row] = await tx
                   .select({ count: sql<number>`count(distinct ${bookings.carUnitId})::int` })
                   .from(bookings)
@@ -467,12 +536,12 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
                   .where(and(
                     eq(bookings.carId, carId),
                     eq(carUnits.status, 'ACTIVE'),
-                    overlapFilter(pickupDate, returnDate, statuses),
+                    overlapFilter(pickupDate, returnDate, statuses, referenceDate),
                   ));
 
                 return Number(row?.count ?? 0);
               },
-              async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses) {
+              async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
                 const [row] = await tx
                   .select({ count: sql<number>`count(*)::int` })
                   .from(bookings)
@@ -480,7 +549,7 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
                   .where(and(
                     eq(cars.category, category),
                     isNull(bookings.carUnitId),
-                    overlapFilter(pickupDate, returnDate, statuses),
+                    overlapFilter(pickupDate, returnDate, statuses, referenceDate),
                   ));
 
                 return Number(row?.count ?? 0);
@@ -531,6 +600,7 @@ export async function createBookingFromQuote(
     ));
   const now = dependencies.now ?? (() => new Date());
   const acceptedAt = now();
+  const reservationExpiresAt = addMinutes(acceptedAt, PENDING_RESERVATION_EXPIRY_MINUTES);
 
   try {
     return await repository.transaction(async (tx) => {
@@ -572,7 +642,12 @@ export async function createBookingFromQuote(
         );
       }
 
-      const carUnitId = await tx.allocateAvailableCarUnit(quote.carId, quote.pickupDate, quote.returnDate);
+      const carUnitId = await tx.allocateAvailableCarUnit(
+        quote.carId,
+        quote.pickupDate,
+        quote.returnDate,
+        acceptedAt,
+      );
       if (!carUnitId) {
         await tx.markQuoteInvalidated(quote.id, acceptedAt);
         throw new BookingFromQuoteError(
@@ -581,20 +656,31 @@ export async function createBookingFromQuote(
         );
       }
 
-      const booking = await tx.insertBooking({
-        userId: user.id,
-        carId: quote.carId,
-        carUnitId,
-        pickupDate: quote.pickupDate,
-        returnDate: quote.returnDate,
-        tripType: quote.tripType,
-        phoneNumber: input.phoneNumber ?? null,
-        pickupAddress: input.pickupAddress ?? null,
-        notes: input.notes ?? null,
-        pricingQuoteId: quote.id,
-        totalPrice: quote.totalInvoiceDisplay,
-        createdAt: acceptedAt,
-      });
+      let booking: { id: string; status: 'PENDING' };
+
+      try {
+        booking = await tx.insertBooking({
+          userId: user.id,
+          carId: quote.carId,
+          carUnitId,
+          pickupDate: quote.pickupDate,
+          returnDate: quote.returnDate,
+          tripType: quote.tripType,
+          phoneNumber: input.phoneNumber,
+          pickupAddress: input.pickupAddress,
+          notes: input.notes ?? null,
+          pricingQuoteId: quote.id,
+          totalPrice: quote.totalInvoiceDisplay,
+          createdAt: acceptedAt,
+          reservationExpiresAt,
+        });
+      } catch (error) {
+        if (isPricingQuoteUniqueViolation(error)) {
+          throw new BookingFromQuoteError('QUOTE_ALREADY_USED', 'Pricing quote sudah dipakai untuk booking.');
+        }
+
+        throw error;
+      }
 
       await tx.insertSnapshot({
         bookingId: booking.id,
@@ -610,6 +696,7 @@ export async function createBookingFromQuote(
         quoteId: quote.id,
         quoteStatus: 'ACCEPTED',
         carUnitAllocated: true,
+        reservationExpiresAt: reservationExpiresAt.toISOString(),
         rental: {
           pickupDate: toDateOnlyString(quote.pickupDate),
           returnDate: toDateOnlyString(quote.returnDate),

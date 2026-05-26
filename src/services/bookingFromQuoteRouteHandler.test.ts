@@ -11,6 +11,7 @@ const bookingResult: BookingFromQuoteResult = {
   quoteId,
   quoteStatus: 'ACCEPTED',
   carUnitAllocated: true,
+  reservationExpiresAt: '2026-06-10T10:30:00.000Z',
   rental: {
     pickupDate: '2026-06-15',
     returnDate: '2026-06-18',
@@ -50,12 +51,20 @@ describe('booking from quote route handler', () => {
       },
     });
 
-    const response = await handler(jsonRequest({ quoteId, phoneNumber: '081234567890' }));
+    const response = await handler(jsonRequest({
+      quoteId,
+      phoneNumber: '081234567890',
+      pickupAddress: 'Bandar Lampung',
+    }));
     const body = await response.json();
 
     assert.equal(response.status, 201);
     assert.deepEqual(body, bookingResult);
-    assert.deepEqual(receivedInput, { quoteId, phoneNumber: '081234567890' });
+    assert.deepEqual(receivedInput, {
+      quoteId,
+      phoneNumber: '081234567890',
+      pickupAddress: 'Bandar Lampung',
+    });
     assert.equal(receivedUserId, '44444444-4444-4444-8444-444444444444');
     assert.equal(body.status, 'PENDING');
     assert.equal(body.quoteStatus, 'ACCEPTED');
@@ -117,6 +126,7 @@ describe('booking from quote route handler', () => {
     for (const code of [
       'QUOTE_EXPIRED',
       'QUOTE_NOT_ACTIVE',
+      'QUOTE_ALREADY_USED',
       'SELECTED_CAR_UNAVAILABLE',
       'QUOTE_REPRICE_REQUIRED',
       'CAR_UNIT_ALLOCATION_FAILED',

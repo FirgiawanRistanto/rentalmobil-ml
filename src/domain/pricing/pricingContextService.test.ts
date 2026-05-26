@@ -25,6 +25,7 @@ interface FakeBooking {
   status: BookingStatus;
   startDate: Date | string;
   endDate: Date | string;
+  reservationExpiresAt?: Date | string | null;
 }
 
 interface FakeRepositoryInput {
@@ -63,11 +64,26 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
     return units.find((unit) => unit.id === unitId);
   }
 
-  function isBlockingOverlap(booking: FakeBooking, pickupDate: Date, returnDate: Date, statuses: readonly BlockingBookingStatus[]) {
+  function isBlockingOverlap(
+    booking: FakeBooking,
+    pickupDate: Date,
+    returnDate: Date,
+    statuses: readonly BlockingBookingStatus[],
+    referenceDate: Date,
+  ) {
     input.onStatuses?.(statuses);
+    const pendingReservationActive = booking.status === 'PENDING' && (
+      booking.reservationExpiresAt === undefined ||
+      booking.reservationExpiresAt === null ||
+      new Date(booking.reservationExpiresAt).getTime() > referenceDate.getTime()
+    );
+    const statusBlocks = (
+      (booking.status === 'CONFIRMED' && statuses.includes('CONFIRMED')) ||
+      (pendingReservationActive && statuses.includes('PENDING'))
+    );
 
     return (
-      statuses.includes(booking.status as BlockingBookingStatus) &&
+      statusBlocks &&
       doRentalPeriodsOverlap(booking.startDate, booking.endDate, pickupDate, returnDate)
     );
   }
@@ -85,7 +101,7 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
       return units.filter((unit) => unit.carId === carId && unit.status === 'ACTIVE').length;
     },
 
-    async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses) {
+    async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
       const blockedUnitIds = new Set<string>();
 
       for (const booking of bookings) {
@@ -93,7 +109,7 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
         if (
           unit?.status === 'ACTIVE' &&
           findCar(booking.carId)?.category === category &&
-          isBlockingOverlap(booking, pickupDate, returnDate, statuses)
+          isBlockingOverlap(booking, pickupDate, returnDate, statuses, referenceDate)
         ) {
           blockedUnitIds.add(unit.id);
         }
@@ -102,7 +118,7 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
       return blockedUnitIds.size;
     },
 
-    async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses) {
+    async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses, referenceDate) {
       const blockedUnitIds = new Set<string>();
 
       for (const booking of bookings) {
@@ -110,7 +126,7 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
         if (
           unit?.status === 'ACTIVE' &&
           booking.carId === carId &&
-          isBlockingOverlap(booking, pickupDate, returnDate, statuses)
+          isBlockingOverlap(booking, pickupDate, returnDate, statuses, referenceDate)
         ) {
           blockedUnitIds.add(unit.id);
         }
@@ -119,11 +135,11 @@ function createRepository(input: FakeRepositoryInput = {}): PricingContextReposi
       return blockedUnitIds.size;
     },
 
-    async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses) {
+    async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
       return bookings.filter((booking) => (
         booking.carUnitId === null &&
         findCar(booking.carId)?.category === category &&
-        isBlockingOverlap(booking, pickupDate, returnDate, statuses)
+        isBlockingOverlap(booking, pickupDate, returnDate, statuses, referenceDate)
       )).length;
     },
 
@@ -279,6 +295,95 @@ describe('buildPricingContext', () => {
     assert.equal(context.categoryAvailableUnits, 5);
     assert.equal(context.selectedCarAvailableUnits, 2);
     assert.equal(context.demandLevel, 'sepi');
+  });
+
+  it('counts active PENDING reservations but ignores expired PENDING reservations', async () => {
+    const context = await buildPricingContext(
+      {
+        carId: 'suv-a',
+        pickupDate: '2026-06-03',
+        durationDays: 2,
+        tripType: 'DALAM_KOTA',
+        referenceDate: new Date('2026-06-01T10:00:00.000Z'),
+      },
+      createRepository({
+        bookings: [
+          {
+            carId: 'suv-a',
+            carUnitId: 'unit-a-1',
+            status: 'PENDING',
+            startDate: '2026-06-01',
+            endDate: '2026-06-04',
+            reservationExpiresAt: new Date('2026-06-01T10:30:00.000Z'),
+          },
+          {
+            carId: 'suv-b',
+            carUnitId: 'unit-b-1',
+            status: 'PENDING',
+            startDate: '2026-06-03',
+            endDate: '2026-06-05',
+            reservationExpiresAt: new Date('2026-06-01T09:59:59.000Z'),
+          },
+        ],
+      }),
+    );
+
+    assert.equal(context.selectedCarAvailableUnits, 1);
+    assert.equal(context.categoryAvailableUnits, 4);
+  });
+
+  it('keeps legacy PENDING reservations with null expiry blocking for safety', async () => {
+    const context = await buildPricingContext(
+      {
+        carId: 'suv-a',
+        pickupDate: '2026-06-03',
+        durationDays: 2,
+        tripType: 'DALAM_KOTA',
+        referenceDate: new Date('2026-06-01T10:00:00.000Z'),
+      },
+      createRepository({
+        bookings: [
+          {
+            carId: 'suv-a',
+            carUnitId: 'unit-a-1',
+            status: 'PENDING',
+            startDate: '2026-06-01',
+            endDate: '2026-06-04',
+            reservationExpiresAt: null,
+          },
+        ],
+      }),
+    );
+
+    assert.equal(context.selectedCarAvailableUnits, 1);
+    assert.equal(context.categoryAvailableUnits, 4);
+  });
+
+  it('keeps CONFIRMED bookings blocking regardless of reservation expiry', async () => {
+    const context = await buildPricingContext(
+      {
+        carId: 'suv-a',
+        pickupDate: '2026-06-03',
+        durationDays: 2,
+        tripType: 'DALAM_KOTA',
+        referenceDate: new Date('2026-06-01T10:00:00.000Z'),
+      },
+      createRepository({
+        bookings: [
+          {
+            carId: 'suv-a',
+            carUnitId: 'unit-a-1',
+            status: 'CONFIRMED',
+            startDate: '2026-06-01',
+            endDate: '2026-06-04',
+            reservationExpiresAt: new Date('2026-06-01T09:00:00.000Z'),
+          },
+        ],
+      }),
+    );
+
+    assert.equal(context.selectedCarAvailableUnits, 1);
+    assert.equal(context.categoryAvailableUnits, 4);
   });
 
   it('does not count MAINTENANCE and INACTIVE units as active units', async () => {

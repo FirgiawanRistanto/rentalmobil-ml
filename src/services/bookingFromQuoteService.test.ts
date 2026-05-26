@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import type { PricingContext } from '../domain/pricing';
 import {
   BookingFromQuoteError,
+  PENDING_RESERVATION_EXPIRY_MINUTES,
   createBookingFromQuote,
   doBookingPeriodsOverlapForAllocation,
   isBlockingBookingStatusForAllocation,
@@ -12,6 +13,16 @@ import {
 } from './bookingFromQuoteService';
 
 const now = new Date('2026-06-10T10:00:00.000Z');
+const expectedReservationExpiresAt = new Date('2026-06-10T10:30:00.000Z');
+
+function bookingRequest(overrides: Record<string, unknown> = {}) {
+  return {
+    quoteId: quoteFixture().id,
+    phoneNumber: '081234567890',
+    pickupAddress: 'Bandar Lampung',
+    ...overrides,
+  };
+}
 
 function quoteFixture(overrides: Partial<PricingQuoteForBooking> = {}): PricingQuoteForBooking {
   return {
@@ -102,6 +113,7 @@ function assertBookingError(error: unknown, code: string): boolean {
 function createMockRepository(initialQuote = quoteFixture(), options: {
   allocatedUnitId?: string | null;
   failSnapshot?: boolean;
+  failBookingWithUniqueViolation?: boolean;
 } = {}) {
   const state = {
     quote: { ...initialQuote },
@@ -142,6 +154,13 @@ function createMockRepository(initialQuote = quoteFixture(), options: {
       return allocatedUnitId;
     },
     async insertBooking(input) {
+      if (options.failBookingWithUniqueViolation) {
+        throw {
+          code: '23505',
+          constraint: 'bookings_pricing_quote_id_unique_non_null',
+        };
+      }
+
       bookingSequence += 1;
       const booking = {
         id: `booking-${bookingSequence}`,
@@ -176,7 +195,7 @@ describe('createBookingFromQuote', () => {
     const { repository } = createMockRepository();
 
     await assert.rejects(
-      () => createBookingFromQuote({ quoteId: quoteFixture().id }, null, { repository, now: () => now }),
+      () => createBookingFromQuote(bookingRequest(), null, { repository, now: () => now }),
       (error) => assertBookingError(error, 'AUTHENTICATION_REQUIRED'),
     );
   });
@@ -207,6 +226,7 @@ describe('createBookingFromQuote', () => {
     assert.equal(result.status, 'PENDING');
     assert.equal(result.quoteStatus, 'ACCEPTED');
     assert.equal(result.carUnitAllocated, true);
+    assert.equal(result.reservationExpiresAt, expectedReservationExpiresAt.toISOString());
     assert.equal(result.nextStep, 'PAYMENT_PENDING');
     assert.equal(result.pricing.modelVersion, 'rf_adjustment_v4_final');
     assert.equal(result.pricing.predictedPriceAdjustmentPct, 0.02757);
@@ -216,6 +236,10 @@ describe('createBookingFromQuote', () => {
     assert.equal((state.bookings[0] as { userId: string }).userId, '44444444-4444-4444-8444-444444444444');
     assert.equal((state.bookings[0] as { carUnitId: string }).carUnitId, '33333333-3333-4333-8333-333333333333');
     assert.equal((state.bookings[0] as { pricingQuoteId: string }).pricingQuoteId, quoteFixture().id);
+    assert.equal(
+      (state.bookings[0] as { reservationExpiresAt: Date }).reservationExpiresAt.toISOString(),
+      expectedReservationExpiresAt.toISOString(),
+    );
     assert.equal(state.snapshots.length, 1);
     assert.equal(state.quote.status, 'ACCEPTED');
     assert.equal(state.quote.userId, '44444444-4444-4444-8444-444444444444');
@@ -229,7 +253,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           { repository, now: () => now, buildContext: async () => contextFixture() },
         ),
@@ -248,7 +272,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           { repository, now: () => now, buildContext: async () => contextFixture() },
         ),
@@ -265,7 +289,7 @@ describe('createBookingFromQuote', () => {
     const user = { id: '44444444-4444-4444-8444-444444444444' };
 
     await createBookingFromQuote(
-      { quoteId: quoteFixture().id },
+      bookingRequest(),
       user,
       { repository, now: () => now, buildContext: async () => contextFixture() },
     );
@@ -273,7 +297,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           user,
           { repository, now: () => now, buildContext: async () => contextFixture() },
         ),
@@ -290,7 +314,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           {
             repository,
@@ -316,7 +340,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           {
             repository,
@@ -352,7 +376,7 @@ describe('createBookingFromQuote', () => {
       await assert.rejects(
         () =>
           createBookingFromQuote(
-            { quoteId: quoteFixture().id },
+            bookingRequest(),
             { id: '44444444-4444-4444-8444-444444444444' },
             { repository, now: () => now, buildContext: async () => changedContext },
           ),
@@ -367,7 +391,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           { repository, now: () => now, buildContext: async () => contextFixture() },
         ),
@@ -385,7 +409,7 @@ describe('createBookingFromQuote', () => {
     await assert.rejects(
       () =>
         createBookingFromQuote(
-          { quoteId: quoteFixture().id },
+          bookingRequest(),
           { id: '44444444-4444-4444-8444-444444444444' },
           { repository, now: () => now, buildContext: async () => contextFixture() },
         ),
@@ -403,7 +427,7 @@ describe('createBookingFromQuote', () => {
       await assert.rejects(
         () =>
           createBookingFromQuote(
-            { quoteId: quoteFixture().id, [field]: 'forbidden' },
+            bookingRequest({ [field]: 'forbidden' }),
             { id: '44444444-4444-4444-8444-444444444444' },
             { repository, now: () => now, buildContext: async () => contextFixture() },
           ),
@@ -411,9 +435,51 @@ describe('createBookingFromQuote', () => {
       );
     }
   });
+
+  it('requires phoneNumber and pickupAddress for v4 booking acceptance', async () => {
+    const { repository } = createMockRepository();
+
+    for (const invalidInput of [
+      { quoteId: quoteFixture().id, pickupAddress: 'Bandar Lampung' },
+      { quoteId: quoteFixture().id, phoneNumber: '   ', pickupAddress: 'Bandar Lampung' },
+      { quoteId: quoteFixture().id, phoneNumber: '081234567890' },
+      { quoteId: quoteFixture().id, phoneNumber: '081234567890', pickupAddress: '   ' },
+    ]) {
+      await assert.rejects(
+        () =>
+          createBookingFromQuote(
+            invalidInput,
+            { id: '44444444-4444-4444-8444-444444444444' },
+            { repository, now: () => now, buildContext: async () => contextFixture() },
+          ),
+        (error) => assertBookingError(error, 'INVALID_BOOKING_REQUEST'),
+      );
+    }
+  });
+
+  it('maps duplicate pricingQuoteId database protection to a safe quote already used error', async () => {
+    const { repository, state } = createMockRepository(quoteFixture(), { failBookingWithUniqueViolation: true });
+
+    await assert.rejects(
+      () =>
+        createBookingFromQuote(
+          bookingRequest(),
+          { id: '44444444-4444-4444-8444-444444444444' },
+          { repository, now: () => now, buildContext: async () => contextFixture() },
+        ),
+      (error) => assertBookingError(error, 'QUOTE_ALREADY_USED'),
+    );
+
+    assert.equal(state.snapshots.length, 0);
+    assert.equal(state.acceptedQuoteIds.length, 0);
+  });
 });
 
 describe('booking unit allocation rules', () => {
+  it('uses a 30 minute reservation window for PENDING booking holds', () => {
+    assert.equal(PENDING_RESERVATION_EXPIRY_MINUTES, 30);
+  });
+
   it('treats only PENDING and CONFIRMED bookings as blocking allocation statuses', () => {
     assert.equal(isBlockingBookingStatusForAllocation('PENDING'), true);
     assert.equal(isBlockingBookingStatusForAllocation('CONFIRMED'), true);
@@ -434,3 +500,4 @@ describe('booking unit allocation rules', () => {
     assert.equal(doBookingPeriodsOverlapForAllocation(june10, june12, june4, june10), false);
   });
 });
+

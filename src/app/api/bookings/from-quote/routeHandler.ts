@@ -43,6 +43,7 @@ function mapBookingFromQuoteError(error: BookingFromQuoteError): NextResponse<Er
   if (
     error.code === 'QUOTE_EXPIRED' ||
     error.code === 'QUOTE_NOT_ACTIVE' ||
+    error.code === 'QUOTE_ALREADY_USED' ||
     error.code === 'SELECTED_CAR_UNAVAILABLE' ||
     error.code === 'QUOTE_REPRICE_REQUIRED' ||
     error.code === 'CAR_UNIT_ALLOCATION_FAILED'

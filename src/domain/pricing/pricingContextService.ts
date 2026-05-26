@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { bookings, cars, carUnits, holidays } from '../../db/schema';
 import {
@@ -47,18 +47,21 @@ export interface PricingContextRepository {
     pickupDate: Date,
     returnDate: Date,
     statuses: readonly BlockingBookingStatus[],
+    referenceDate: Date,
   ): Promise<number>;
   countBlockedActiveUnitsByCarId(
     carId: string,
     pickupDate: Date,
     returnDate: Date,
     statuses: readonly BlockingBookingStatus[],
+    referenceDate: Date,
   ): Promise<number>;
   countUnallocatedBlockingBookingsByCategory(
     category: string,
     pickupDate: Date,
     returnDate: Date,
     statuses: readonly BlockingBookingStatus[],
+    referenceDate: Date,
   ): Promise<number>;
   isActiveHoliday(pickupDate: Date): Promise<boolean>;
 }
@@ -104,12 +107,53 @@ function clampBlockedUnits(blockedUnits: number, activeUnits: number): number {
   return Math.min(Math.trunc(blockedUnits), activeUnits);
 }
 
-function buildOverlapFilter(pickupDate: Date, returnDate: Date, statuses: readonly BlockingBookingStatus[]) {
+function buildStatusBlockingFilter(statuses: readonly BlockingBookingStatus[], referenceDate: Date) {
+  const statusFilters = [];
+
+  if (statuses.includes('CONFIRMED')) {
+    statusFilters.push(eq(bookings.status, 'CONFIRMED'));
+  }
+
+  if (statuses.includes('PENDING')) {
+    statusFilters.push(and(
+      eq(bookings.status, 'PENDING'),
+      or(
+        isNull(bookings.reservationExpiresAt),
+        gt(bookings.reservationExpiresAt, referenceDate),
+      ),
+    ));
+  }
+
+  if (statusFilters.length === 0) {
+    return sql`false`;
+  }
+
+  return or(...statusFilters);
+}
+
+function buildOverlapFilter(
+  pickupDate: Date,
+  returnDate: Date,
+  statuses: readonly BlockingBookingStatus[],
+  referenceDate: Date,
+) {
   return and(
-    inArray(bookings.status, [...statuses]),
+    buildStatusBlockingFilter(statuses, referenceDate),
     lt(bookings.startDate, returnDate),
     gt(bookings.endDate, pickupDate),
   );
+}
+
+function resolveBlockingReferenceDate(referenceDate?: Date | string): Date {
+  if (referenceDate === undefined) {
+    return new Date();
+  }
+
+  if (referenceDate instanceof Date) {
+    return new Date(referenceDate);
+  }
+
+  return parsePricingDate(referenceDate, 'Tanggal referensi');
 }
 
 export const drizzlePricingContextRepository: PricingContextRepository = {
@@ -146,7 +190,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
     return Number(row?.count ?? 0);
   },
 
-  async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses) {
+  async countBlockedActiveUnitsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
     const [row] = await db
       .select({ count: sql<number>`count(distinct ${bookings.carUnitId})::int` })
       .from(bookings)
@@ -155,13 +199,13 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .where(and(
         eq(cars.category, category),
         eq(carUnits.status, 'ACTIVE'),
-        buildOverlapFilter(pickupDate, returnDate, statuses),
+        buildOverlapFilter(pickupDate, returnDate, statuses, referenceDate),
       ));
 
     return Number(row?.count ?? 0);
   },
 
-  async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses) {
+  async countBlockedActiveUnitsByCarId(carId, pickupDate, returnDate, statuses, referenceDate) {
     const [row] = await db
       .select({ count: sql<number>`count(distinct ${bookings.carUnitId})::int` })
       .from(bookings)
@@ -169,13 +213,13 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .where(and(
         eq(bookings.carId, carId),
         eq(carUnits.status, 'ACTIVE'),
-        buildOverlapFilter(pickupDate, returnDate, statuses),
+        buildOverlapFilter(pickupDate, returnDate, statuses, referenceDate),
       ));
 
     return Number(row?.count ?? 0);
   },
 
-  async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses) {
+  async countUnallocatedBlockingBookingsByCategory(category, pickupDate, returnDate, statuses, referenceDate) {
     const [row] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(bookings)
@@ -183,7 +227,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .where(and(
         eq(cars.category, category),
         isNull(bookings.carUnitId),
-        buildOverlapFilter(pickupDate, returnDate, statuses),
+        buildOverlapFilter(pickupDate, returnDate, statuses, referenceDate),
       ));
 
     return Number(row?.count ?? 0);
@@ -208,6 +252,7 @@ export async function buildPricingContext(
   const modelTripType = mapTripTypeToModelTripType(input.tripType);
   const pickupDate = parsePricingDate(input.pickupDate, 'Tanggal pickup');
   const returnDate = calculateReturnDate(pickupDate, input.durationDays);
+  const blockingReferenceDate = resolveBlockingReferenceDate(input.referenceDate);
   const bookingLeadDays = calculateBookingLeadDays(pickupDate, input.referenceDate);
 
   const car = await repository.findCarForPricing(input.carId);
@@ -221,6 +266,7 @@ export async function buildPricingContext(
     pickupDate,
     returnDate,
     BLOCKING_BOOKING_STATUSES,
+    blockingReferenceDate,
   );
 
   if (unallocatedBlockingBookings > 0) {
@@ -237,12 +283,14 @@ export async function buildPricingContext(
     pickupDate,
     returnDate,
     BLOCKING_BOOKING_STATUSES,
+    blockingReferenceDate,
   );
   const selectedCarBlockedUnits = await repository.countBlockedActiveUnitsByCarId(
     car.id,
     pickupDate,
     returnDate,
     BLOCKING_BOOKING_STATUSES,
+    blockingReferenceDate,
   );
   const categoryAvailableUnits = categoryActiveUnits - clampBlockedUnits(categoryBlockedUnits, categoryActiveUnits);
   const selectedCarAvailableUnits = selectedCarActiveUnits - clampBlockedUnits(

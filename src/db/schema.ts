@@ -1,5 +1,18 @@
 import { sql } from 'drizzle-orm';
-import { date, index, integer, jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
+import {
+  date,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  boolean,
+} from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
 export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']);
@@ -128,9 +141,14 @@ export const bookings = pgTable('bookings', {
   pricingQuoteId: uuid('pricingQuoteId').references(() => pricingQuotes.id),
   totalPrice: integer('totalPrice').notNull(),
   status: bookingStatusEnum('status').default('PENDING').notNull(),
+  reservationExpiresAt: timestamp('reservationExpiresAt', { mode: 'date' }),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex('bookings_pricing_quote_id_unique_non_null')
+    .on(table.pricingQuoteId)
+    .where(sql`${table.pricingQuoteId} IS NOT NULL`),
+]);
 
 export const bookingPriceSnapshots = pgTable('booking_price_snapshots', {
   id: uuid('id').primaryKey().defaultRandom(),
