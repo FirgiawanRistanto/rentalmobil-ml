@@ -18,6 +18,22 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Dynamic Pricing v4 Local Development
+
+Pricing quote v4 requires PostgreSQL and the FastAPI ML service to run locally.
+
+1. Ensure PostgreSQL is running and database migrations have been applied.
+2. Place the final model artifact at `ml-service/artifacts/v4_final/dynamic_pricing_adjustment_rf_pipeline_v4.pkl`.
+   The `.pkl` file is intentionally ignored by Git.
+3. Start FastAPI from `ml-service/.venv-v4`.
+4. Configure the Next.js server environment:
+
+```bash
+ML_SERVICE_BASE_URL=http://127.0.0.1:8000
+```
+
+`ML_SERVICE_BASE_URL` is server-only and must not use the `NEXT_PUBLIC_` prefix.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

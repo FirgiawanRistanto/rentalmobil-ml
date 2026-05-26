@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "ml-service/.venv-v4/**",
+    "ml-service/venv/**",
+    "ml-service/**/__pycache__/**",
+    "ml-service/**/.pytest_cache/**",
+    "ml-service/**/*.pyc",
+    "ml-service/artifacts/**/*.pkl",
+    "ml-service/artifacts/**/*.joblib",
   ]),
 ]);
 
