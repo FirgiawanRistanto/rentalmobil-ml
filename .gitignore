@@ -39,3 +39,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python virtual environments and caches
+ml-service/venv/
+ml-service/.venv-v4/
+ml-service/**/__pycache__/
+ml-service/**/.pytest_cache/
+ml-service/**/*.pyc
+
+# Large local ML artifacts
+ml-service/artifacts/**/*.pkl
+ml-service/artifacts/**/*.joblib
+
+# Legacy local ML artifacts, if accidentally retained
+ml-service/rf_model.pkl
+ml-service/le_category.pkl
+ml-service/le_model.pkl
