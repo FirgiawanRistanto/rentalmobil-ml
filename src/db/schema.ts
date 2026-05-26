@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { date, integer, jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
+import { date, index, integer, jsonb, numeric, pgEnum, pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
 export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']);
@@ -12,12 +12,55 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
-  emailVerified: timestamp('emailVerified', { mode: 'date' }),
+  emailVerified: boolean('emailVerified').default(false).notNull(),
+  emailVerifiedAt: timestamp('emailVerifiedAt', { mode: 'date' }),
   image: text('image'),
   role: roleEnum('role').default('CUSTOMER').notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 });
+
+export const accounts = pgTable('accounts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  accountId: text('accountId').notNull(),
+  providerId: text('providerId').notNull(),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  accessToken: text('accessToken'),
+  refreshToken: text('refreshToken'),
+  idToken: text('idToken'),
+  accessTokenExpiresAt: timestamp('accessTokenExpiresAt', { mode: 'date' }),
+  refreshTokenExpiresAt: timestamp('refreshTokenExpiresAt', { mode: 'date' }),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+  index('accounts_userId_idx').on(table.userId),
+]);
+
+export const sessions = pgTable('sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  expiresAt: timestamp('expiresAt', { mode: 'date' }).notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+  ipAddress: text('ipAddress'),
+  userAgent: text('userAgent'),
+  userId: uuid('userId').notNull().references(() => users.id, { onDelete: 'cascade' }),
+}, (table) => [
+  index('sessions_userId_idx').on(table.userId),
+]);
+
+export const verifications = pgTable('verifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expiresAt', { mode: 'date' }).notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+  index('verifications_identifier_idx').on(table.identifier),
+]);
 
 export const cars = pgTable('cars', {
   id: uuid('id').primaryKey().defaultRandom(),
