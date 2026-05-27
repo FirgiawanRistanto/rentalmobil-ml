@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import {
   buildLoginCallbackForQuote,
+  buildSafeBookingHandoffPath,
   formatDateId,
   formatDateTimeId,
   formatPercentId,
@@ -27,6 +29,7 @@ export default function InvoicePreview({
   now = new Date(),
 }: InvoicePreviewProps) {
   const expired = isQuoteExpired(quote.expiresAt, now);
+  const confirmPath = buildSafeBookingHandoffPath(carSlug, quote.quoteId);
 
   return (
     <section className="rounded-xl border border-primary/20 bg-white p-5 shadow-sm dark:bg-slate-900">
@@ -142,18 +145,28 @@ export default function InvoicePreview({
           </p>
         </div>
 
-        <button
-          className="w-full rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-black text-white shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-slate-900"
-          data-login-callback={buildLoginCallbackForQuote(carSlug, quote.quoteId)}
-          data-quote-id={quote.quoteId}
-          disabled
-          type="button"
-        >
-          Lanjut Booking
-        </button>
+        {expired ? (
+          <button
+            className="w-full cursor-not-allowed rounded-xl bg-slate-900 px-4 py-3.5 text-sm font-black text-white opacity-60 shadow-lg dark:bg-white dark:text-slate-900"
+            disabled
+            type="button"
+          >
+            Lanjut Booking
+          </button>
+        ) : (
+          <Link
+            className="block w-full rounded-xl bg-slate-900 px-4 py-3.5 text-center text-sm font-black text-white shadow-lg transition-colors hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+            data-confirm-path={confirmPath}
+            data-login-callback={buildLoginCallbackForQuote(carSlug, quote.quoteId)}
+            data-quote-id={quote.quoteId}
+            href={confirmPath}
+          >
+            Lanjut Booking
+          </Link>
+        )}
         <p className="text-center text-xs leading-relaxed text-slate-500">
-          Booking final berbasis quote akan diaktifkan pada fase berikutnya. Quote ini belum membuat booking, snapshot harga,
-          pembayaran, atau reservasi unit.
+          Booking akan dibuat setelah Anda login, meninjau ulang estimasi harga, dan mengisi data penjemputan.
+          Tombol ini belum mengarah ke pembayaran.
         </p>
       </div>
     </section>

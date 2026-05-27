@@ -204,8 +204,8 @@ export function isQuoteExpired(expiresAt: string, referenceDate = new Date()): b
   return new Date(expiresAt).getTime() <= referenceDate.getTime();
 }
 
-export function buildSafeBookingHandoffPath(slug: string, quoteId: string): string {
-  return `/booking/${encodeURIComponent(slug)}?quoteId=${encodeURIComponent(quoteId)}`;
+export function buildSafeBookingHandoffPath(_slug: string, quoteId: string): string {
+  return `/booking/confirm?quoteId=${encodeURIComponent(quoteId)}`;
 }
 
 export function buildLoginCallbackForQuote(slug: string, quoteId: string): string {
