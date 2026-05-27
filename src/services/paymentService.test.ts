@@ -6,6 +6,7 @@ import {
   PaymentServiceError,
   getAdminPaymentProof,
   listAdminPayments,
+  readBookingPayment,
   readAdminPaymentDetail,
   rejectPaymentSubmission,
   submitPaymentProof,
@@ -95,6 +96,7 @@ function fakeRepository(options: {
   reviewPayment?: Record<string, unknown> | null;
   adminListRows?: unknown[];
   adminDetailRow?: unknown | null;
+  bookingSummary?: unknown | null;
   proofMetadata?: unknown | null;
   insertPaymentThrows?: boolean;
 } = {}) {
@@ -146,7 +148,7 @@ function fakeRepository(options: {
       return callback(transactionRepository);
     },
     async findBookingPaymentSummary() {
-      return null;
+      return (options.bookingSummary === undefined ? null : options.bookingSummary) as never;
     },
     async expireSubmittedPayments() {
       state.expired = true;
@@ -367,6 +369,45 @@ describe('admin payment review', () => {
     assert.equal(result.paymentStatus, 'REJECTED');
     assert.equal(result.bookingStatus, 'CANCELLED');
     assert.equal(state.rejectedReason, 'Bukti pembayaran tidak valid');
+  });
+});
+
+describe('readBookingPayment', () => {
+  it('normalizes PostgreSQL timestamptz strings with numeric offsets as absolute instants', async () => {
+    const { repository } = fakeRepository({
+      bookingSummary: {
+        id: bookingId,
+        userId: user.id,
+        status: 'PENDING',
+        reservationExpiresAt: '2026-06-10 17:30:00.000000+07',
+        carId: '66666666-6666-4666-8666-666666666666',
+        carBrand: 'Toyota',
+        carModel: 'Fortuner',
+        carCategory: 'SUV',
+        startDate: new Date('2026-06-15T00:00:00.000Z'),
+        endDate: new Date('2026-06-18T00:00:00.000Z'),
+        tripType: 'LUAR_KOTA',
+        totalPrice: 4623000,
+        snapshotTotalInvoiceDisplay: 4623000,
+        snapshotDynamicPriceDisplayPerDay: 1541000,
+        snapshotModelVersion: 'rf_adjustment_v4_final',
+        paymentId,
+        paymentStatus: 'SUBMITTED',
+        paymentMethod: 'BANK_TRANSFER_MANUAL',
+        paymentAmount: 4623000,
+        paymentSubmittedAt: '2026-06-10 17:00:00.123456+07',
+        paymentReviewExpiresAt: '2026-06-11 17:00:00.123456+07',
+        paymentReviewedAt: null,
+        paymentRejectionReason: null,
+      },
+    });
+
+    const result = await readBookingPayment(bookingId, user, { repository });
+
+    assert.equal(result.reservationExpiresAt, '2026-06-10T10:30:00.000Z');
+    assert.equal(result.payment?.submittedAt, '2026-06-10T10:00:00.123Z');
+    assert.equal(result.payment?.reviewExpiresAt, '2026-06-11T10:00:00.123Z');
+    assert.equal(result.pricing.totalInvoiceDisplay, 4623000);
   });
 });
 

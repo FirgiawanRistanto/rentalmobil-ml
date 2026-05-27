@@ -124,9 +124,9 @@ export const pricingQuotes = pgTable('pricing_quotes', {
   pricingReasons: jsonb('pricingReasons').notNull(),
   modelVersion: text('modelVersion').notNull(),
   status: pricingQuoteStatusEnum('status').default('ACTIVE').notNull(),
-  expiresAt: timestamp('expiresAt', { mode: 'date' }).default(sql`now() + interval '15 minutes'`).notNull(),
-  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+  expiresAt: timestamp('expiresAt', { mode: 'date', withTimezone: true }).default(sql`now() + interval '15 minutes'`).notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 });
 
 export const bookings = pgTable('bookings', {
@@ -143,9 +143,9 @@ export const bookings = pgTable('bookings', {
   pricingQuoteId: uuid('pricingQuoteId').references(() => pricingQuotes.id),
   totalPrice: integer('totalPrice').notNull(),
   status: bookingStatusEnum('status').default('PENDING').notNull(),
-  reservationExpiresAt: timestamp('reservationExpiresAt', { mode: 'date' }),
-  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+  reservationExpiresAt: timestamp('reservationExpiresAt', { mode: 'date', withTimezone: true }),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('bookings_pricing_quote_id_unique_non_null')
     .on(table.pricingQuoteId)
@@ -181,13 +181,13 @@ export const bookingPayments = pgTable('booking_payments', {
   proofOriginalName: text('proofOriginalName'),
   proofMimeType: text('proofMimeType').notNull(),
   proofSizeBytes: integer('proofSizeBytes').notNull(),
-  submittedAt: timestamp('submittedAt', { mode: 'date' }).notNull(),
-  reviewExpiresAt: timestamp('reviewExpiresAt', { mode: 'date' }).notNull(),
-  reviewedAt: timestamp('reviewedAt', { mode: 'date' }),
+  submittedAt: timestamp('submittedAt', { mode: 'date', withTimezone: true }).notNull(),
+  reviewExpiresAt: timestamp('reviewExpiresAt', { mode: 'date', withTimezone: true }).notNull(),
+  reviewedAt: timestamp('reviewedAt', { mode: 'date', withTimezone: true }),
   reviewedByUserId: uuid('reviewedByUserId').references(() => users.id),
   rejectionReason: text('rejectionReason'),
-  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
-  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   uniqueIndex('booking_payments_booking_id_unique').on(table.bookingId),
   index('booking_payments_status_idx').on(table.status),

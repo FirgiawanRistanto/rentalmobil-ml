@@ -114,6 +114,10 @@ interface BookingPaymentSummaryRow {
   userId: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
   reservationExpiresAt: Date | null;
+  carId: string;
+  carBrand: string;
+  carModel: string;
+  carCategory: string;
   startDate: Date;
   endDate: Date;
   tripType: 'DALAM_KOTA' | 'LUAR_KOTA';
@@ -225,9 +229,15 @@ export interface ReadBookingPaymentResult {
   bookingId: string;
   bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
   reservationExpiresAt: string | null;
+  car: {
+    id: string;
+    name: string;
+    category: string;
+  };
   rental: {
     pickupDate: string;
     returnDate: string;
+    durationDays: number;
     tripType: 'DALAM_KOTA' | 'LUAR_KOTA';
   };
   pricing: {
@@ -352,8 +362,11 @@ function normalizeDatabaseDate(value: Date | string | null | undefined): Date | 
   }
 
   const normalized = value
+    .trim()
     .replace(' ', 'T')
-    .replace(/(\.\d{3})\d+/, '$1');
+    .replace(/(\.\d{3})\d+/, '$1')
+    .replace(/([+-]\d{2})$/, '$1:00')
+    .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
   const date = new Date(normalized);
 
   if (Number.isNaN(date.getTime())) {
@@ -728,6 +741,10 @@ export function createDrizzlePaymentRepository(): PaymentRepository {
           b."userId" as "userId",
           b.status,
           b."reservationExpiresAt" as "reservationExpiresAt",
+          c.id as "carId",
+          c.brand as "carBrand",
+          c.model as "carModel",
+          c.category as "carCategory",
           b."startDate" as "startDate",
           b."endDate" as "endDate",
           b."tripType" as "tripType",
@@ -744,6 +761,7 @@ export function createDrizzlePaymentRepository(): PaymentRepository {
           p."reviewedAt" as "paymentReviewedAt",
           p."rejectionReason" as "paymentRejectionReason"
         from bookings b
+        join cars c on c.id = b."carId"
         left join booking_price_snapshots bps on bps."bookingId" = b.id
         left join booking_payments p on p."bookingId" = b.id
         where b.id = ${bookingId}
@@ -1138,14 +1156,26 @@ export async function readBookingPayment(
   }
 
   const totalInvoiceDisplay = booking.snapshotTotalInvoiceDisplay ?? booking.totalPrice;
+  const reservationExpiresAt = normalizeDatabaseDate(booking.reservationExpiresAt);
+  const startDate = requireDatabaseDate(booking.startDate);
+  const endDate = requireDatabaseDate(booking.endDate);
+  const paymentSubmittedAt = normalizeDatabaseDate(booking.paymentSubmittedAt);
+  const paymentReviewExpiresAt = normalizeDatabaseDate(booking.paymentReviewExpiresAt);
+  const paymentReviewedAt = normalizeDatabaseDate(booking.paymentReviewedAt);
 
   return {
     bookingId: booking.id,
     bookingStatus: booking.status,
-    reservationExpiresAt: booking.reservationExpiresAt?.toISOString() ?? null,
+    reservationExpiresAt: reservationExpiresAt?.toISOString() ?? null,
+    car: {
+      id: booking.carId,
+      name: `${booking.carBrand} ${booking.carModel}`.trim(),
+      category: booking.carCategory,
+    },
     rental: {
-      pickupDate: toDateOnlyString(booking.startDate),
-      returnDate: toDateOnlyString(booking.endDate),
+      pickupDate: toDateOnlyString(startDate),
+      returnDate: toDateOnlyString(endDate),
+      durationDays: calculateRentalDurationDays(startDate, endDate),
       tripType: booking.tripType,
     },
     pricing: {
@@ -1159,9 +1189,9 @@ export async function readBookingPayment(
         method: booking.paymentMethod ?? MANUAL_BANK_TRANSFER_METHOD,
         status: booking.paymentStatus ?? 'SUBMITTED',
         amount: booking.paymentAmount ?? totalInvoiceDisplay,
-        submittedAt: booking.paymentSubmittedAt?.toISOString() ?? null,
-        reviewExpiresAt: booking.paymentReviewExpiresAt?.toISOString() ?? null,
-        reviewedAt: booking.paymentReviewedAt?.toISOString() ?? null,
+        submittedAt: paymentSubmittedAt?.toISOString() ?? null,
+        reviewExpiresAt: paymentReviewExpiresAt?.toISOString() ?? null,
+        reviewedAt: paymentReviewedAt?.toISOString() ?? null,
         rejectionReason: booking.paymentRejectionReason,
       }
       : null,

@@ -330,9 +330,15 @@ describe('read booking payment route handler', () => {
             bookingId,
             bookingStatus: 'PENDING',
             reservationExpiresAt: '2026-06-11T10:00:00.000Z',
+            car: {
+              id: '55555555-5555-4555-8555-555555555555',
+              name: 'Toyota Fortuner',
+              category: 'SUV',
+            },
             rental: {
               pickupDate: '2026-06-15',
               returnDate: '2026-06-18',
+              durationDays: 3,
               tripType: 'LUAR_KOTA',
             },
             pricing: {
