@@ -33,6 +33,7 @@ export default function AdminSidebar() {
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: 'dashboard' },
     { name: 'Transaksi', href: '/admin/transaksi', icon: 'receipt_long' },
+    { name: 'Pembayaran', href: '/admin/payments', icon: 'payments' },
     { name: 'Armada', href: '/admin/armada', icon: 'minor_crash' },
     { name: 'Supir', href: '/admin/supir', icon: 'person_pin_circle' },
     { name: 'Laporan', href: '/admin/laporan', icon: 'analytics' },

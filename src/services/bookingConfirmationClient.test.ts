@@ -167,12 +167,13 @@ describe('booking confirmation UI/client helpers', () => {
     );
   });
 
-  it('keeps the v4 confirmation flow away from legacy payment and booking pages', () => {
+  it('hands off PENDING bookings to the v4 payment route instead of the legacy payment demo', () => {
     const invoiceSource = readFileSync('src/components/pricing/InvoicePreview.tsx', 'utf8');
     const confirmSource = readFileSync('src/components/booking/BookingConfirmationClient.tsx', 'utf8');
 
     assert.equal(invoiceSource.includes('/api/pricing/estimate'), false);
     assert.equal(confirmSource.includes('/api/pricing/estimate'), false);
+    assert.equal(confirmSource.includes('buildBookingPaymentPath'), true);
     assert.equal(confirmSource.includes('/payment/'), false);
     assert.equal(confirmSource.includes('BOOKING_FROM_QUOTE_ENDPOINT'), false);
   });

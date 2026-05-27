@@ -19,6 +19,7 @@ import {
   type BookingFromQuoteResponse,
   type BookingQuoteReadResponse,
 } from '@/lib/bookingConfirmationUi';
+import { buildBookingPaymentPath } from '@/lib/paymentUi';
 import { createBookingFromQuoteClient } from '@/services/bookingFromQuoteClient';
 import { readPricingQuoteForBooking } from '@/services/pricingQuoteReadClient';
 
@@ -121,7 +122,7 @@ function PendingBookingSuccess({ booking }: { booking: BookingFromQuoteResponse 
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               Unit kendaraan telah dicadangkan sementara sampai batas waktu reservasi.
-              Fitur pembayaran akan diintegrasikan pada tahap berikutnya.
+              Lanjutkan ke upload bukti transfer manual agar admin dapat memverifikasi pembayaran.
             </p>
           </div>
         </div>
@@ -146,16 +147,22 @@ function PendingBookingSuccess({ booking }: { booking: BookingFromQuoteResponse 
             : `Reservasi berlaku hingga ${formatDateTimeId(booking.reservationExpiresAt)}`}
         </p>
 
-        <div className="rounded-lg border border-slate-200 p-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-          Pembayaran belum aktif pada fase ini. Tidak ada tombol payment dan halaman ini tidak mengarah ke payment demo lama.
-        </div>
-
-        <Link
-          className="inline-flex w-fit rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white"
-          href="/dashboard"
-        >
-          Lihat Dashboard
-        </Link>
+        {expired ? (
+          <Link
+            className="inline-flex w-fit rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white"
+            href="/katalog"
+          >
+            Hitung Ulang Harga
+          </Link>
+        ) : (
+          <Link
+            className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white"
+            href={buildBookingPaymentPath(booking.bookingId)}
+          >
+            <span className="material-symbols-outlined text-lg">upload_file</span>
+            Lanjut Upload Bukti Pembayaran
+          </Link>
+        )}
       </div>
     </section>
   );
