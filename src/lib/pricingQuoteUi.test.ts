@@ -90,11 +90,11 @@ describe('pricing quote UI helpers', () => {
   it('keeps quoteId in an internal handoff path without calling booking/payment', () => {
     assert.equal(
       buildSafeBookingHandoffPath('car-1', 'quote-1'),
-      '/booking/car-1?quoteId=quote-1',
+      '/booking/confirm?quoteId=quote-1',
     );
     assert.equal(
       buildLoginCallbackForQuote('car-1', 'quote-1'),
-      '/login?callbackURL=%2Fbooking%2Fcar-1%3FquoteId%3Dquote-1',
+      '/login?callbackURL=%2Fbooking%2Fconfirm%3FquoteId%3Dquote-1',
     );
   });
 
@@ -107,5 +107,13 @@ describe('pricing quote UI helpers', () => {
 
     assert.equal(source.includes('/api/pricing/estimate'), false);
     assert.equal(source.includes('DynamicPricingQuoteForm'), true);
+  });
+
+  it('activates invoice CTA through the v4 confirmation route instead of payment or legacy booking', () => {
+    const source = readFileSync('src/components/pricing/InvoicePreview.tsx', 'utf8');
+
+    assert.equal(source.includes('buildSafeBookingHandoffPath'), true);
+    assert.equal(source.includes('/payment/'), false);
+    assert.equal(source.includes('disabled\\n          type="button"'), false);
   });
 });

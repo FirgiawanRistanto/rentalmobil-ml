@@ -24,7 +24,6 @@ export default function DynamicPricingQuoteForm({ car }: DynamicPricingQuoteForm
   const [tripType, setTripType] = useState<PricingTripType>('DALAM_KOTA');
   const [quote, setQuote] = useState<PricingQuoteResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [handoffMessage, setHandoffMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const isFormInvalid = !car.id || !pickupDate || durationDays < 1 || durationDays > MAX_QUOTE_DURATION_DAYS;
@@ -38,7 +37,6 @@ export default function DynamicPricingQuoteForm({ car }: DynamicPricingQuoteForm
 
     setIsLoading(true);
     setErrorMessage(null);
-    setHandoffMessage(null);
 
     try {
       const pricingQuote = await requestPricingQuote({
@@ -156,21 +154,7 @@ export default function DynamicPricingQuoteForm({ car }: DynamicPricingQuoteForm
       </section>
 
       {quote ? (
-        <div>
-          <InvoicePreview carName={car.name} carSlug={car.id ?? car.slug} quote={quote} />
-          <button
-            className="mt-3 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
-            onClick={() => setHandoffMessage(`Quote ${quote.quoteId} siap digunakan untuk fase booking final berikutnya.`)}
-            type="button"
-          >
-            Simpan Quote untuk Fase Booking
-          </button>
-          {handoffMessage ? (
-            <p className="mt-2 rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
-              {handoffMessage}
-            </p>
-          ) : null}
-        </div>
+        <InvoicePreview carName={car.name} carSlug={car.id ?? car.slug} quote={quote} />
       ) : null}
     </div>
   );
