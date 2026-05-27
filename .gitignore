@@ -56,3 +56,6 @@ ml-service/artifacts/**/*.joblib
 ml-service/rf_model.pkl
 ml-service/le_category.pkl
 ml-service/le_model.pkl
+
+# Local development uploads
+storage/payment-proofs/

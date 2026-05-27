@@ -20,6 +20,8 @@ export const carUnitStatusEnum = pgEnum('car_unit_status', ['ACTIVE', 'MAINTENAN
 export const tripTypeEnum = pgEnum('trip_type', ['DALAM_KOTA', 'LUAR_KOTA']);
 export const demandLevelEnum = pgEnum('demand_level', ['sepi', 'normal', 'ramai']);
 export const pricingQuoteStatusEnum = pgEnum('pricing_quote_status', ['ACTIVE', 'ACCEPTED', 'EXPIRED', 'INVALIDATED']);
+export const paymentMethodEnum = pgEnum('payment_method', ['BANK_TRANSFER_MANUAL']);
+export const paymentStatusEnum = pgEnum('payment_status', ['SUBMITTED', 'VERIFIED', 'REJECTED', 'EXPIRED']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -168,6 +170,28 @@ export const bookingPriceSnapshots = pgTable('booking_price_snapshots', {
   modelVersion: text('modelVersion').notNull(),
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
 });
+
+export const bookingPayments = pgTable('booking_payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('bookingId').references(() => bookings.id).notNull(),
+  method: paymentMethodEnum('method').default('BANK_TRANSFER_MANUAL').notNull(),
+  status: paymentStatusEnum('status').default('SUBMITTED').notNull(),
+  amount: integer('amount').notNull(),
+  proofStorageKey: text('proofStorageKey').notNull(),
+  proofOriginalName: text('proofOriginalName'),
+  proofMimeType: text('proofMimeType').notNull(),
+  proofSizeBytes: integer('proofSizeBytes').notNull(),
+  submittedAt: timestamp('submittedAt', { mode: 'date' }).notNull(),
+  reviewExpiresAt: timestamp('reviewExpiresAt', { mode: 'date' }).notNull(),
+  reviewedAt: timestamp('reviewedAt', { mode: 'date' }),
+  reviewedByUserId: uuid('reviewedByUserId').references(() => users.id),
+  rejectionReason: text('rejectionReason'),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('booking_payments_booking_id_unique').on(table.bookingId),
+  index('booking_payments_status_idx').on(table.status),
+]);
 
 export const holidays = pgTable('holidays', {
   id: uuid('id').primaryKey().defaultRandom(),
