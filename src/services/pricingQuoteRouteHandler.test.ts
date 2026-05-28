@@ -133,11 +133,11 @@ describe('pricing quote route handler', () => {
     assert.equal(body.error.code, 'ML_SERVICE_UNAVAILABLE');
   });
 
-  it('keeps legacy /api/pricing/estimate behavior unchanged for missing parameters', async () => {
+  it('returns a controlled deprecation response from legacy /api/pricing/estimate', async () => {
     const response = await legacyEstimatePost(jsonRequest({}));
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.equal(body.error, 'Missing required parameters');
+    assert.equal(response.status, 410);
+    assert.equal(body.error.code, 'LEGACY_PRICING_ESTIMATE_DEPRECATED');
   });
 });
