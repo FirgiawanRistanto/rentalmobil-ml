@@ -277,6 +277,9 @@ export function getAdminPaymentErrorMessage(code: string): string {
       return 'Verifikasi belum berhasil.';
     case 'PAYMENT_REJECTION_FAILED':
       return 'Penolakan belum berhasil.';
+    case 'ADMIN_DASHBOARD_READ_FAILED':
+    case 'ADMIN_DASHBOARD_RESPONSE_INVALID':
+      return 'Dashboard admin belum dapat dibaca.';
     default:
       return 'Data pembayaran belum dapat diproses. Silakan coba kembali.';
   }
