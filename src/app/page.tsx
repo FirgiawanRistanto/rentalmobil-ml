@@ -97,7 +97,7 @@ export default function HomePage() {
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 7 Kursi</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Auto</span>
               </div>
-              <Link href="/booking/fortuner" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Sewa Sekarang</Link>
+              <Link href="/katalog/fortuner" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
             </div>
           </div>
           {/* Unit 2 */}
@@ -113,7 +113,7 @@ export default function HomePage() {
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 8 Kursi</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Manual/Auto</span>
               </div>
-              <Link href="/booking/innova-reborn" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Sewa Sekarang</Link>
+              <Link href="/katalog/innova-reborn" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
             </div>
           </div>
           {/* Unit 3 */}
@@ -129,7 +129,7 @@ export default function HomePage() {
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 14 Kursi</span>
                 <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Manual</span>
               </div>
-              <Link href="/booking/hiace-commuter" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Sewa Sekarang</Link>
+              <Link href="/katalog/hiace-commuter" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
             </div>
           </div>
         </div>

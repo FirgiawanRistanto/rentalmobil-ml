@@ -123,7 +123,7 @@ export default function UserDashboard() {
                   <span className="text-[11px] font-semibold text-blue-700 dark:text-blue-300">Harga diprediksi oleh AI</span>
                 </div>
               </div>
-              <button className="text-primary text-sm font-semibold hover:underline">Lihat Semua</button>
+              <Link className="text-primary text-sm font-semibold hover:underline" href="/katalog">Booking Baru</Link>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
@@ -146,7 +146,7 @@ export default function UserDashboard() {
                     { id: '#BRM-002', date: '15 Okt 2023', car: 'Mitsubishi Xpander Ultimate', duration: '2 Hari', total: 'Rp 900.000', status: 'Confirmed', badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800', dotClass: 'bg-emerald-600', icon: '🟢', hasDriver: true, routeId: 'BRN-002' },
                     { id: '#BRM-001', date: '12 Okt 2023', car: 'Toyota Avanza Veloz', duration: '3 Hari', total: 'Rp 1.050.000', status: 'Completed', badgeClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700', iconClass: 'check_circle', icon: '✅', routeId: 'BRN-001' },
                   ].map((item, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer" onClick={() => window.location.href = `/payment/${item.routeId}`}>
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="px-6 py-4 text-sm font-semibold text-primary">{item.id}</td>
                       <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{item.date}</td>
                       <td className="px-6 py-4 text-sm">
