@@ -17,6 +17,7 @@ import {
   PaymentUiError,
   type BookingPaymentReadResponse,
 } from '@/lib/paymentUi';
+import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
 import { readBookingPaymentClient, uploadPaymentProofClient } from '@/services/paymentClient';
 
 interface CustomerPaymentClientProps {
@@ -251,7 +252,7 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Kendaraan</p>
               <SummaryRow label="Mobil" value={booking.car.name} />
               <SummaryRow label="Kategori" value={booking.car.category} />
-              <SummaryRow label="Model version" value={booking.pricing.modelVersion ?? '-'} />
+              <SummaryRow label="Model" value={booking.pricing.modelVersion ? formatPricingModelLabel(booking.pricing.modelVersion) : '-'} />
             </div>
             <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Detail Sewa</p>

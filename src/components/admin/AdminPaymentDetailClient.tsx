@@ -15,6 +15,7 @@ import {
   PaymentUiError,
   type AdminPaymentDetailResponse,
 } from '@/lib/paymentUi';
+import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
 import {
   readAdminPaymentDetailClient,
   rejectAdminPaymentClient,
@@ -250,7 +251,7 @@ export default function AdminPaymentDetailClient({ paymentId }: AdminPaymentDeta
                     <SummaryRow label="Adjustment" value={payment.priceSnapshot.predictedPriceAdjustmentPct === null ? '-' : `${(payment.priceSnapshot.predictedPriceAdjustmentPct * 100).toFixed(2)}%`} />
                     <SummaryRow label="Harga dinamis / hari" value={payment.priceSnapshot.dynamicPriceDisplayPerDay ? formatRupiahId(payment.priceSnapshot.dynamicPriceDisplayPerDay) : '-'} />
                     <SummaryRow label="Total invoice" value={payment.priceSnapshot.totalInvoiceDisplay ? formatRupiahId(payment.priceSnapshot.totalInvoiceDisplay) : '-'} />
-                    <SummaryRow label="Model version" value={payment.priceSnapshot.modelVersion ?? '-'} />
+                    <SummaryRow label="Model" value={payment.priceSnapshot.modelVersion ? formatPricingModelLabel(payment.priceSnapshot.modelVersion, 'admin') : '-'} />
                   </div>
                   {reasons.length > 0 ? (
                     <ul className="mt-4 space-y-2">

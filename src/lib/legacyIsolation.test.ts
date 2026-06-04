@@ -49,7 +49,8 @@ describe('legacy route isolation for Dynamic Pricing v4 flow', () => {
     const adminSidebarSource = readFileSync('src/components/admin/AdminSidebar.tsx', 'utf8');
 
     assert.equal(homeSource.includes('href="/booking/'), false);
-    assert.equal(homeSource.includes('href="/katalog/'), true);
+    assert.equal(homeSource.includes('buildFeaturedCars'), true);
+    assert.equal(homeSource.includes('href={`/katalog/${car.slug}`}'), true);
     assert.equal(dashboardSource.includes('window.location.href = `/payment/'), false);
     assert.equal(bookingLegacySource.includes('redirect(`/katalog/'), true);
     assert.equal(paymentLegacySource.includes('redirect(`/booking/payment/'), true);

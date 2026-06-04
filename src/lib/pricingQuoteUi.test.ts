@@ -4,6 +4,8 @@ import { describe, it } from 'node:test';
 import {
   buildLoginCallbackForQuote,
   buildSafeBookingHandoffPath,
+  formatPercentId,
+  formatPricingModelLabel,
   formatRupiahId,
   formatSignedPercentId,
   getDemandDisplayLabel,
@@ -60,6 +62,20 @@ describe('pricing quote UI helpers', () => {
     assert.equal(formatRupiahId(1541000), 'Rp1.541.000');
     assert.equal(formatSignedPercentId(2.76), '+2,76%');
     assert.equal(formatSignedPercentId(-12.4), '-12,40%');
+    assert.equal(formatPercentId(1), '100%');
+    assert.equal(formatPercentId(0.8), '80%');
+    assert.equal(formatPercentId(0.707), '70,7%');
+  });
+
+  it('maps internal model version to user-friendly display labels without mutating the contract value', () => {
+    const internalModelVersion = 'rf_adjustment_v4_final';
+
+    assert.equal(formatPricingModelLabel(internalModelVersion), 'Model Harga Dinamis');
+    assert.equal(
+      formatPricingModelLabel(internalModelVersion, 'admin'),
+      'Model Dynamic Pricing Random Forest',
+    );
+    assert.equal(internalModelVersion, 'rf_adjustment_v4_final');
   });
 
   it('maps demand level and backend error codes to user-friendly text', () => {
@@ -115,5 +131,20 @@ describe('pricing quote UI helpers', () => {
     assert.equal(source.includes('buildSafeBookingHandoffPath'), true);
     assert.equal(source.includes('/payment/'), false);
     assert.equal(source.includes('disabled\\n          type="button"'), false);
+  });
+
+  it('does not render the internal model version label directly in customer-facing UI files', () => {
+    const uiFiles = [
+      'src/components/pricing/InvoicePreview.tsx',
+      'src/app/dashboard/page.tsx',
+      'src/components/payment/CustomerPaymentClient.tsx',
+      'src/components/admin/AdminPaymentDetailClient.tsx',
+    ];
+
+    for (const file of uiFiles) {
+      const source = readFileSync(file, 'utf8');
+      assert.equal(source.includes('rf_adjustment_v4_final'), false, file);
+      assert.equal(source.includes('Model version'), false, file);
+    }
   });
 });

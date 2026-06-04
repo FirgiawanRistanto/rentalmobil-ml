@@ -1,6 +1,13 @@
 import Link from 'next/link';
+import { formatRupiah } from '@/lib/data';
+import { buildFeaturedCars } from '@/lib/homeFeaturedCars';
+import { carService } from '@/services/carService';
 
-export default function HomePage() {
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const featuredCars = buildFeaturedCars(await carService.getAllCars());
+
   return (
     <>
       {/* Hero Section */}
@@ -83,56 +90,33 @@ export default function HomePage() {
             Lihat Semua <span className="material-symbols-outlined">arrow_forward</span>
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Unit 1 */}
-          <div className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-100 dark:border-slate-800 flex flex-col">
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <img alt="Toyota Fortuner" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBwj2OEfowZ7Qll_wqPeUr8UI1TEzxGsIyW1p7IaBdBenW95d2_His3kGBJpmCsBpm5HfxgaA3mlq-ujlvzmGjbmYbFy9JKFM6JRjv_ug9-a6P6kuaFiu3KXfBaX3h4c37qGdLZ-sE5glzvQnt0Qp4W-CdDNz1XBZdTTn272MB63siv2JGIK4W28x4MDXeU8BMAsWNOogrNm4llWdADgB1OQW7GpdKampxQ6S78aK5LHh7nMxp9hRi_PaNpW2RzGZH1B-20X3GjQ" />
-              <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase">SUV Mewah</div>
-            </div>
-            <div className="p-6 flex flex-col flex-1">
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Toyota Fortuner</h3>
-              <p className="text-primary text-xl font-black mb-6">Rp 1.500.000 <span className="text-slate-400 text-sm font-normal">/ Hari</span></p>
-              <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8 flex-1">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 7 Kursi</span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Auto</span>
+        {featuredCars.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredCars.map((car) => (
+              <div key={car.slug} className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-100 dark:border-slate-800 flex flex-col">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img alt={car.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src={car.image} />
+                  <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase">{car.type}</div>
+                </div>
+                <div className="p-6 flex flex-col flex-1">
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{car.name}</h3>
+                  <p className="text-primary text-xl font-black mb-6">
+                    {formatRupiah(car.basePrice)} <span className="text-slate-400 text-sm font-normal">/ Hari</span>
+                  </p>
+                  <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8 flex-1">
+                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> {car.capacity} Kursi</span>
+                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> {car.transmission}</span>
+                  </div>
+                  <Link href={`/katalog/${car.slug}`} className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
+                </div>
               </div>
-              <Link href="/katalog/fortuner" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
-            </div>
+            ))}
           </div>
-          {/* Unit 2 */}
-          <div className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-100 dark:border-slate-800 flex flex-col">
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <img alt="Toyota Innova" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRPWUtXbUVYKJBpHWjiy_5NwSHLZ1iD8peYtnKcfh9rBYBXPpnpwG5djARwP_bZD5Q0k2BLz6H4aXDfykh_wk5DziHCSDIOleMIjiWvoNkixRihki7VYorUH2jk5eufnHCvOGQ7JE7cOuGaXDvpSghhKX3ZdK0LZLdI7IbARdUHMF_eFPGVpZ1XHQJVND_cYXvaW4Q6Bv1Tqa-CtYuDtJ08nltLcDMXOSlUiBA5WGJy7PUbrrX7ozxjqqz133XBF3pJr2BOryvig" />
-              <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase">MPV Keluarga</div>
-            </div>
-            <div className="p-6 flex flex-col flex-1">
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Toyota Innova</h3>
-              <p className="text-primary text-xl font-black mb-6">Rp 750.000 <span className="text-slate-400 text-sm font-normal">/ Hari</span></p>
-              <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8 flex-1">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 8 Kursi</span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Manual/Auto</span>
-              </div>
-              <Link href="/katalog/innova-reborn" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
-            </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+            Belum ada armada aktif yang tersedia di katalog.
           </div>
-          {/* Unit 3 */}
-          <div className="group bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-100 dark:border-slate-800 flex flex-col">
-            <div className="relative aspect-[4/3] overflow-hidden">
-              <img alt="Toyota Hiace" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNdTdQeuZVh-3VONJUunh2Y9RyhjO3cUAW2rfxtJWKaQWdL6ZJ6M19wrxTzYYwHxfZ9tDCjXnM-aTzA3C-qpoIy_JkJaPlri79O8vIvDlSwiaoZR3eG-UeE1KAyJOxPtvxMCJpZlR-lUWgVjmdcyuEE7aLGEwMS-XI3OXurRWlJEzdw0VkF2C_3UYfgcbluMrIihIMgg9EEDIcj5wFhU_vCsa_2v6VWkYJxIV1LcQnS8eEMYykjvCKKDHZw3EITwd3nX18DNJYIg" />
-              <div className="absolute top-4 right-4 bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase">Microbus</div>
-            </div>
-            <div className="p-6 flex flex-col flex-1">
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Toyota Hiace</h3>
-              <p className="text-primary text-xl font-black mb-6">Rp 1.500.000 <span className="text-slate-400 text-sm font-normal">/ Hari</span></p>
-              <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8 flex-1">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> 14 Kursi</span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">settings</span> Manual</span>
-              </div>
-              <Link href="/katalog/hiace-commuter" className="block w-full text-center py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-all mt-auto content-end">Cek Harga</Link>
-            </div>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Cara Sewa Section */}

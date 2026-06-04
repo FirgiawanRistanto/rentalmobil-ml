@@ -7,6 +7,7 @@ import {
   formatDateId,
   formatDateTimeId,
   formatPercentId,
+  formatPricingModelLabel,
   formatRupiahId,
   formatSignedPercentId,
   getDemandDisplayLabel,
@@ -32,12 +33,12 @@ export default function InvoicePreview({
   const confirmPath = buildSafeBookingHandoffPath(carSlug, quote.quoteId);
 
   return (
-    <section className="rounded-xl border border-primary/20 bg-white p-5 shadow-sm dark:bg-slate-900">
-      <div className="mb-5 flex items-start justify-between gap-4">
+    <section className="rounded-xl border border-primary/20 bg-white p-4 shadow-sm dark:bg-slate-900">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-primary">Invoice Preview</p>
-          <h3 className="mt-1 text-xl font-black text-slate-900 dark:text-white">{carName}</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <h3 className="mt-1 text-lg font-black text-slate-900 dark:text-white">{carName}</h3>
+          <p className="mt-1 text-xs text-slate-500">
             Quote ID: <span className="font-mono text-xs">{quote.quoteId}</span>
           </p>
         </div>
@@ -46,88 +47,69 @@ export default function InvoicePreview({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 text-sm">
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Ringkasan Kendaraan</p>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-500">Kategori</span>
-            <span className="font-bold text-slate-900 dark:text-white">{quote.car.category}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-500">Harga dasar per hari</span>
-            <span className="font-bold text-slate-900 dark:text-white">{formatRupiahId(quote.car.basePricePerDay)}</span>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Detail Sewa</p>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-500">Mulai</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{formatDateId(quote.rental.pickupDate)}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-500">Kembali</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{formatDateId(quote.rental.returnDate)}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-500">Durasi</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{quote.rental.durationDays} hari</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-500">Jenis perjalanan</span>
-            <span className="font-semibold text-slate-900 dark:text-white">{getTripTypeLabel(quote.rental.tripType)}</span>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 gap-3 text-sm">
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-primary">Perhitungan Harga</p>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-600 dark:text-slate-300">Harga dasar per hari</span>
-            <span className="font-bold text-slate-900 dark:text-white">{formatRupiahId(quote.car.basePricePerDay)}</span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-600 dark:text-slate-300">Penyesuaian harga</span>
-            <span className="font-bold text-primary">
-              {formatSignedPercentId(quote.pricing.predictedPriceAdjustmentPercentDisplay)}
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-600 dark:text-slate-300">Harga dinamis per hari</span>
-            <span className="font-black text-slate-900 dark:text-white">
-              {formatRupiahId(quote.pricing.dynamicPriceDisplayPerDay)}
-            </span>
-          </div>
-          <div className="mt-4 border-t border-primary/20 pt-4">
-            <div className="flex items-end justify-between gap-4">
-              <span className="font-bold text-slate-900 dark:text-white">Total invoice</span>
-              <span className="text-2xl font-black text-primary">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary">Total invoice</p>
+              <p className="mt-1 text-3xl font-black text-primary">
                 {formatRupiahId(quote.pricing.totalInvoiceDisplay)}
+              </p>
+              <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {formatPricingModelLabel(quote.pricing.modelVersion)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Harga / hari</p>
+              <p className="mt-1 text-lg font-black text-slate-900 dark:text-white">
+                {formatRupiahId(quote.pricing.dynamicPriceDisplayPerDay)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-primary">
+                {formatSignedPercentId(quote.pricing.predictedPriceAdjustmentPercentDisplay)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Sewa</p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+              <span className="text-slate-500">Mulai</span>
+              <span className="text-right font-semibold text-slate-900 dark:text-white">{formatDateId(quote.rental.pickupDate)}</span>
+              <span className="text-slate-500">Kembali</span>
+              <span className="text-right font-semibold text-slate-900 dark:text-white">{formatDateId(quote.rental.returnDate)}</span>
+              <span className="text-slate-500">Durasi</span>
+              <span className="text-right font-semibold text-slate-900 dark:text-white">{quote.rental.durationDays} hari</span>
+              <span className="text-slate-500">Perjalanan</span>
+              <span className="text-right font-semibold text-slate-900 dark:text-white">{getTripTypeLabel(quote.rental.tripType)}</span>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Kendaraan & Kondisi</p>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+              <span className="text-slate-500">Kategori</span>
+              <span className="text-right font-bold text-slate-900 dark:text-white">{quote.car.category}</span>
+              <span className="text-slate-500">Harga dasar</span>
+              <span className="text-right font-bold text-slate-900 dark:text-white">{formatRupiahId(quote.car.basePricePerDay)}</span>
+              <span className="text-slate-500">Status</span>
+              <span className="text-right font-bold text-slate-900 dark:text-white">
+                {getDemandDisplayLabel(quote.pricingContext.demandLevel)}
+              </span>
+              <span className="text-slate-500">Ketersediaan</span>
+              <span className="text-right font-bold text-slate-900 dark:text-white">
+                {formatPercentId(quote.pricingContext.availabilityRatio)} tersedia
               </span>
             </div>
           </div>
         </div>
 
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">Kondisi Sistem</p>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-500">Status permintaan</span>
-            <span className="font-bold text-slate-900 dark:text-white">
-              {getDemandDisplayLabel(quote.pricingContext.demandLevel)}
-            </span>
-          </div>
-          <div className="mt-2 flex justify-between gap-4">
-            <span className="text-slate-500">Ketersediaan kategori</span>
-            <span className="font-bold text-slate-900 dark:text-white">
-              {formatPercentId(quote.pricingContext.availabilityRatio)} tersedia
-            </span>
-          </div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
-          <p className="mb-3 text-sm font-bold text-slate-900 dark:text-white">
+        <details className="rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+          <summary className="cursor-pointer text-sm font-bold text-slate-900 dark:text-white">
             Faktor yang dipertimbangkan dalam rekomendasi harga
-          </p>
-          <ul className="space-y-2">
+          </summary>
+          <ul className="mt-3 space-y-2">
             {quote.pricingReasons.map((reason) => (
               <li key={reason} className="flex gap-2 text-sm text-slate-600 dark:text-slate-300">
                 <span className="material-symbols-outlined mt-0.5 text-[16px] text-primary">check_circle</span>
@@ -135,9 +117,9 @@ export default function InvoicePreview({
               </li>
             ))}
           </ul>
-        </div>
+        </details>
 
-        <div className={`rounded-lg border p-4 ${expired ? 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/20' : 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/20'}`}>
+        <div className={`rounded-lg border px-4 py-3 ${expired ? 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/20' : 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/20'}`}>
           <p className={`text-sm font-bold ${expired ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'}`}>
             {expired
               ? 'Estimasi harga sudah kadaluarsa. Silakan hitung ulang harga.'

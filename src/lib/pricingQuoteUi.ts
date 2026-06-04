@@ -155,11 +155,23 @@ export function formatSignedPercentId(value: number): string {
 }
 
 export function formatPercentId(value: number): string {
+  const percentValue = value * 100;
+  const hasFraction = Math.abs(percentValue - Math.round(percentValue)) > 1e-9;
+
   return new Intl.NumberFormat('id-ID', {
     style: 'percent',
-    minimumFractionDigits: 1,
+    minimumFractionDigits: hasFraction ? 1 : 0,
     maximumFractionDigits: 1,
   }).format(value);
+}
+
+export function formatPricingModelLabel(
+  _modelVersion: string | null | undefined,
+  audience: 'customer' | 'admin' = 'customer',
+): string {
+  return audience === 'admin'
+    ? 'Model Dynamic Pricing Random Forest'
+    : 'Model Harga Dinamis';
 }
 
 export function formatDateId(dateOnlyOrIso: string): string {

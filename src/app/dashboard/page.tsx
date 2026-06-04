@@ -20,6 +20,7 @@ import {
   getTripTypeLabel,
   PaymentUiError,
 } from '@/lib/paymentUi';
+import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
 import { listCustomerDashboardBookingsClient } from '@/services/customerBookingDashboardClient';
 
 function DashboardMetric({
@@ -93,7 +94,7 @@ function BookingCard({ booking }: { booking: CustomerDashboardBooking }) {
           </span>
           <p className="text-2xl font-black text-primary">{formatRupiahId(booking.pricing.totalInvoiceDisplay)}</p>
           {booking.pricing.modelVersion ? (
-            <p className="text-xs font-semibold text-slate-400">{booking.pricing.modelVersion}</p>
+            <p className="text-xs font-semibold text-slate-400">{formatPricingModelLabel(booking.pricing.modelVersion)}</p>
           ) : null}
         </div>
       </div>
