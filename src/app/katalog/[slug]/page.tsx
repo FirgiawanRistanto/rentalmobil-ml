@@ -70,7 +70,6 @@ export default function CarDetailPage() {
         <div className="flex flex-col gap-6 lg:col-span-8">
           <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-slate-900">
             <div className="relative h-64 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-72 lg:h-[529px]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 alt={car.name}
                 className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"

@@ -331,7 +331,6 @@ export default function AdminMobilPage() {
               <article key={car.id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex flex-col gap-4 xl:flex-row">
                   <div className="h-32 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 xl:w-44 dark:bg-slate-800">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       alt={car.name}
                       className="h-full w-full object-cover"

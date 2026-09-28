@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Car not found' }, { status: 404 });
     }
     return NextResponse.json(car);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch car' }, { status: 500 });
   }
 }
