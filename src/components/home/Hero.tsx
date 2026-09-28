@@ -39,7 +39,7 @@ export default function Hero() {
             🚗 Lihat Katalog
           </Link>
           <Link
-            href="/#about"
+            href="/tentang-kami"
             className="px-8 py-4 border border-white/10 text-text-secondary font-medium rounded-xl hover:bg-white/5 hover:text-text-primary transition-all duration-300"
           >
             Tentang Kami →

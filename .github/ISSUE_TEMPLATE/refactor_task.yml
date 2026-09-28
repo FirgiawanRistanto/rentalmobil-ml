@@ -1,0 +1,41 @@
+name: Refactor Task
+description: Rencanakan task refactor bertahap untuk Dynamic Pricing v4.
+title: "[Refactor]: "
+labels:
+  - refactor
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Tujuan
+      description: Jelaskan tujuan task ini.
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Area
+      options:
+        - Documentation
+        - Database schema / migration
+        - Pricing context service
+        - FastAPI inference contract
+        - Next.js API route
+        - Customer UI
+        - Booking flow
+        - Better Auth
+        - Testing / documentation
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Batasan
+      description: Catat hal yang tidak boleh diubah pada task ini.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validasi
+      description: Command atau skenario yang harus dijalankan.

@@ -1,0 +1,42 @@
+{
+  "split": "split_80_20",
+  "trainRatio": 0.8,
+  "testRatio": 0.2,
+  "model": {
+    "type": "RandomForestRegressor",
+    "params": {
+      "n_estimators": 500,
+      "max_depth": 15,
+      "max_features": "sqrt",
+      "min_samples_split": 5,
+      "min_samples_leaf": 1,
+      "random_state": 42,
+      "n_jobs": -1
+    }
+  },
+  "randomState": 42,
+  "totalRows": 41088,
+  "trainRows": 32868,
+  "testRows": 8220,
+  "uniqueSourceVehicles": 3424,
+  "trainSourceVehicles": 2739,
+  "testSourceVehicles": 685,
+  "sourceVehicleOverlap": 0,
+  "features": [
+    "vehicle_category",
+    "trip_type",
+    "duration_days",
+    "is_weekend",
+    "is_holiday",
+    "is_peak_season",
+    "utilization_rate",
+    "booking_lead_days"
+  ],
+  "target": "price_adjustment_pct",
+  "mae": 0.021042936693271303,
+  "r2": 0.9764182991197321,
+  "maePctPoint": 2.1042936693271304,
+  "r2Percent": 97.6418299119732,
+  "maeDisplayPriceIdr": 12261.922141119221,
+  "generatedAt": "2026-06-10T14:27:43.912841+00:00"
+}

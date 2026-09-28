@@ -1,0 +1,71 @@
+{
+  "study_case": "Rental Mobil XYZ (objek simulasi)",
+  "data_version": "v4_demand_derived_from_utilization_round_display_1000",
+  "dataset": "car_rental_xyz_dynamic_pricing_v4.csv",
+  "target": "price_adjustment_pct",
+  "model_features": [
+    "vehicle_category",
+    "trip_type",
+    "duration_days",
+    "is_weekend",
+    "is_holiday",
+    "is_peak_season",
+    "utilization_rate",
+    "booking_lead_days"
+  ],
+  "derived_for_ui_not_model_features": [
+    "availability_ratio",
+    "demand_level"
+  ],
+  "demand_derivation_rule": {
+    "formula": "utilization_rate = 1 - availability_ratio",
+    "sepi": "utilization_rate <= 0.30",
+    "normal": "0.30 < utilization_rate < 0.70",
+    "ramai": "utilization_rate >= 0.70"
+  },
+  "rows": 41088,
+  "source_vehicles": 3424,
+  "train_rows": 32868,
+  "test_rows": 8220,
+  "train_source_vehicles": 2739,
+  "test_source_vehicles": 685,
+  "overlap_source_vehicle_id": 0,
+  "grid_mode": "full",
+  "cv_splits": 5,
+  "candidate_count": 72,
+  "best_params": {
+    "model__max_depth": 15,
+    "model__max_features": "sqrt",
+    "model__min_samples_leaf": 1,
+    "model__min_samples_split": 5,
+    "model__n_estimators": 500
+  },
+  "best_cv_mae_percentage_points": 2.109995836333009,
+  "test_adjustment_metrics": {
+    "mae_decimal": 0.021042936693271303,
+    "rmse_decimal": 0.025983226786578554,
+    "mae_percentage_points": 2.1042936693271304,
+    "rmse_percentage_points": 2.5983226786578553,
+    "r2": 0.9764182991197321
+  },
+  "dummy_baseline_metrics": {
+    "mae_decimal": 0.1400462802723391,
+    "rmse_decimal": 0.16920268509297254,
+    "mae_percentage_points": 14.00462802723391,
+    "rmse_percentage_points": 16.920268509297255,
+    "r2": -7.966171152284929e-06
+  },
+  "raw_dynamic_daily_price_metrics_idr": {
+    "mae_idr": 12254.828223844283,
+    "rmse_idr": 15706.7495667795,
+    "r2": 0.9936891714552764
+  },
+  "display_dynamic_daily_price_metrics_idr": {
+    "mae_idr": 12262.165450121654,
+    "rmse_idr": 15713.342231606592,
+    "r2": 0.9936840312020412
+  },
+  "display_price_rounding_unit_idr": 1000,
+  "integration_contract": "Backend calculates availability_ratio, derives utilization_rate and demand_level; FastAPI model consumes utilization_rate and other booking context; UI displays demand_level as explanation.",
+  "methodological_note": "Target adalah label simulasi yang tetap perlu validasi praktisi sebelum diposisikan sebagai rekomendasi kebijakan harga."
+}

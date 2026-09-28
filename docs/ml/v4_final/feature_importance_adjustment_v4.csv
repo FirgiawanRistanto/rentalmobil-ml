@@ -1,0 +1,13 @@
+feature,importance
+utilization_rate,0.5096496342029988
+is_peak_season,0.11292760807242279
+trip_type_luar_kota,0.09058142777832463
+trip_type_dalam_kota,0.0819096337284441
+is_holiday,0.06432860459795066
+duration_days,0.06120638271590345
+is_weekend,0.05803233910117472
+booking_lead_days,0.019299128855780234
+vehicle_category_passenger_car,0.0006150861824876728
+vehicle_category_suv,0.0005922252832593829
+vehicle_category_mpv,0.0004761879964695624
+vehicle_category_van,0.00038174148478407443

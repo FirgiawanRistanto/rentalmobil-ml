@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/db/seedPricingConfig.ts",
+    "setup": "node scripts/setup-database.mjs",
+    "verify:setup": "node scripts/verify-setup.mjs"
   },
   "dependencies": {
     "better-auth": "^1.6.11",
@@ -14,7 +21,9 @@
     "next": "16.1.7",
     "pg": "^8.21.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "reactflow": "^11.11.4",
+    "sweetalert2": "^11.26.25"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

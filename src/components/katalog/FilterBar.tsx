@@ -1,6 +1,6 @@
 'use client';
 
-const filters = ['Semua', 'MPV', 'SUV', 'Van', 'Premium'] as const;
+const filters = ['Semua', 'City Car', 'MPV', 'SUV'] as const;
 
 interface FilterBarProps {
   activeFilter: string;

@@ -1,0 +1,36 @@
+name: Bug Report
+description: Laporkan bug pada aplikasi Rental Mobil XYZ.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Deskripsi
+      description: Jelaskan masalah yang terjadi.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah Reproduksi
+      description: Tulis langkah singkat untuk memunculkan bug.
+      placeholder: |
+        1. Buka ...
+        2. Klik ...
+        3. Terjadi ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Perilaku yang Diharapkan
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Konteks Tambahan
+      description: Screenshot, log, atau catatan lain bila ada.
+

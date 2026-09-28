@@ -1,0 +1,21 @@
+{
+  "environment_type": "local_inference_environment",
+  "model_version": "rf_adjustment_v4_final",
+  "note": "Local inference environment verified by loading and predicting with the final model artifact without compatibility shim. This is not the original Google Colab training environment.",
+  "python": "3.12.10",
+  "scikit_learn": "1.6.1",
+  "pandas": "3.0.3",
+  "numpy": "2.4.6",
+  "scipy": "1.17.1",
+  "joblib": "1.5.3",
+  "fastapi": "0.136.3",
+  "pydantic": "2.13.4",
+  "compatibility_shim_used": false,
+  "artifact_load_success": true,
+  "smoke_prediction_success": true,
+  "generated_at": "2026-05-26T05:37:43.782059+00:00",
+  "artifact_size_bytes": 356088579,
+  "model_load_seconds": 5.150652199999968,
+  "smoke_prediction_seconds": 0.06429100000059407,
+  "compatibility_warnings": []
+}

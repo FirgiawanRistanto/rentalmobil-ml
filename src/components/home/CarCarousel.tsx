@@ -22,7 +22,7 @@ export default function CarCarousel() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {featuredCars.map((car, i) => (
+          {featuredCars.map((car) => (
             <Link
               key={car.slug}
               href={`/katalog/${car.slug}`}
