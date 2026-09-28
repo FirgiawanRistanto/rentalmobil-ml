@@ -77,13 +77,23 @@ ADMIN_NAME=Admin XYZ
 
 ### 2. Buat Database
 
-Buat database sesuai nama di `DATABASE_URL` (belum dibuat otomatis oleh setup):
+Buat database sesuai nama di `DATABASE_URL` (belum dibuat otomatis oleh setup). Pilih salah satu cara:
+
+**a. psql** — jika `psql` tidak dikenali di Windows, tambahkan `C:\Program Files\PostgreSQL\<versi>\bin` ke PATH atau pakai "SQL Shell (psql)" dari Start Menu:
 
 ```bash
 psql -U postgres -c "CREATE DATABASE rentalmobil;"
 ```
 
-atau melalui GUI (pgAdmin, DBeaver, dsb). Jika nama di `DATABASE_URL` berbeda, sesuaikan.
+**b. Docker** — jika PostgreSQL berjalan di dalam container:
+
+```bash
+docker exec -it <nama-container-postgres> psql -U postgres -c "CREATE DATABASE rentalmobil;"
+```
+
+**c. GUI** — pgAdmin / DBeaver / TablePlus: buat koneksi ke server lokal, lalu klik kanan *Databases* → *Create* → tulis `rentalmobil`.
+
+Jika nama di `DATABASE_URL` berbeda, sesuaikan di semua perintah di atas.
 
 ### 3. Setup Database (Migrasi + Seed)
 
