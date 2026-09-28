@@ -55,8 +55,8 @@ describe('booking database integrity', () => {
           RETURNING id
         `);
         const car = await client.query<{ id: string }>(`
-          INSERT INTO "cars" ("brand", "model", "category", "year", "basePricePerDay", "isAvailable")
-          VALUES ('Test', 'Integrity', 'SUV', 2026, 1500000, true)
+          INSERT INTO "cars" ("slug", "brand", "model", "category", "year", "basePricePerDay", "isAvailable")
+          VALUES (concat('booking-integrity-', gen_random_uuid()), 'Test', 'Integrity', 'SUV', 2026, 1500000, true)
           RETURNING id
         `);
         const quote = await client.query<{ id: string }>(`

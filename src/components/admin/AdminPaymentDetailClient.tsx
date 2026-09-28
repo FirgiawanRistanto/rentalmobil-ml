@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import {
   ADMIN_PAYMENTS_ROUTE,
@@ -104,8 +105,16 @@ export default function AdminPaymentDetailClient({ paymentId }: AdminPaymentDeta
       return;
     }
 
-    const confirmed = window.confirm('Verifikasi pembayaran ini? Booking akan menjadi CONFIRMED.');
-    if (!confirmed) {
+    const result = await Swal.fire({
+      title: 'Verifikasi pembayaran?',
+      text: 'Booking akan menjadi CONFIRMED setelah pembayaran diverifikasi.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Verifikasi',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#059669',
+    });
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -141,8 +150,16 @@ export default function AdminPaymentDetailClient({ paymentId }: AdminPaymentDeta
       return;
     }
 
-    const confirmed = window.confirm('Tolak bukti pembayaran ini? Booking akan menjadi CANCELLED.');
-    if (!confirmed) {
+    const result = await Swal.fire({
+      title: 'Tolak bukti pembayaran?',
+      text: 'Booking akan menjadi CANCELLED setelah bukti pembayaran ditolak.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Tolak Bukti',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) {
       return;
     }
 

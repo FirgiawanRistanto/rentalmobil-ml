@@ -33,10 +33,10 @@ export default function AdminSidebar() {
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: 'dashboard' },
     { name: 'Transaksi', href: '/admin/transaksi', icon: 'receipt_long' },
-    { name: 'Pembayaran', href: '/admin/payments', icon: 'payments' },
-    { name: 'Armada', href: '/admin/armada', icon: 'minor_crash' },
-    { name: 'Supir', href: '/admin/supir', icon: 'person_pin_circle' },
+    { name: 'Mobil', href: '/admin/mobil', icon: 'minor_crash' },
     { name: 'Laporan', href: '/admin/laporan', icon: 'analytics' },
+    { name: 'Machine Learning', href: '/admin/machine-learning', icon: 'modeling' },
+    { name: 'Random Forest', href: '/admin/random-forest', icon: 'device_hub' },
   ];
 
   return (
@@ -54,7 +54,7 @@ export default function AdminSidebar() {
         
         <nav className="flex flex-col gap-1.5 grow">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(`${item.href}/`));
             return (
               <Link 
                 key={item.name} 
@@ -73,20 +73,7 @@ export default function AdminSidebar() {
         </nav>
       </div>
 
-      <div className="mt-auto p-6 border-t border-slate-100 dark:border-slate-800/50">
-        <div className="bg-primary/5 dark:bg-primary/10 rounded-xl p-4 border border-primary/10 mb-6 antialiased">
-          <div className="flex items-center gap-2 mb-2">
-             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-            <p className="text-[10px] font-bold text-primary uppercase tracking-wider">AI Active</p>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 shadow-sm">Real-time dynamic pricing is turned on.</p>
-        </div>
-
-        <Link href="#" className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-          <span className="material-symbols-outlined text-[20px]">settings</span>
-          <span className="text-sm font-medium">Settings</span>
-        </Link>
-        
+      <div className="mt-auto p-6 border-t border-slate-100 dark:border-slate-800/50">        
         <div className="flex items-center gap-3 px-4 py-2 mt-2 group">
           <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center border-2 border-white dark:border-slate-800 overflow-hidden shadow-sm group-hover:border-primary transition-colors">
             <img alt="Admin Avatar" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqUvJnPNDhwoZuxZR-Yzud-32ZKi8QWY7jNAoBbzvrPBXiUBkspvijruhbCFv5BPEnvDEdL7Hk9l4Xj6dswep9Fm9e-MroY34VOtS_Qi3FU20m5xS5GQ1BNLtVRcvEF_1hpc2MTT6DLpYIN_JmTiG0jPj8SEu3cC6oS9p6twmowvAfyhPmPgnleW4vUcAs9sqA5-SPlCtgm8wmnDa4SMvhn3YEjQ2eGVTU6Q5om3FC2lY8NKjaMzmmpO4OPDgRskM_pain9QRH2g"/>

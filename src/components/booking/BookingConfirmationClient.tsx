@@ -19,6 +19,7 @@ import {
   type BookingFromQuoteResponse,
   type BookingQuoteReadResponse,
 } from '@/lib/bookingConfirmationUi';
+import { getCarCategoryDisplayLabel } from '@/lib/carCategoryUi';
 import { buildBookingPaymentPath } from '@/lib/paymentUi';
 import { createBookingFromQuoteClient } from '@/services/bookingFromQuoteClient';
 import { readPricingQuoteForBooking } from '@/services/pricingQuoteReadClient';
@@ -55,7 +56,7 @@ function QuoteSummary({ quote }: { quote: BookingQuoteReadResponse }) {
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Kendaraan</p>
-          <SummaryRow label="Kategori" value={quote.car.category} />
+          <SummaryRow label="Kategori" value={getCarCategoryDisplayLabel(quote.car.category)} />
           <SummaryRow label="Harga dasar per hari" value={formatRupiahId(quote.car.basePricePerDay)} />
           <SummaryRow label="Status permintaan" value={getDemandDisplayLabel(quote.pricingContext.demandLevel)} />
         </div>

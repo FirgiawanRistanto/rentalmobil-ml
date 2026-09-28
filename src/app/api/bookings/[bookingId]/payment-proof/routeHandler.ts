@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCurrentAuthSession } from '../../../../../lib/auth-session';
 import {
   PaymentServiceError,
   submitPaymentProof,
@@ -83,6 +82,7 @@ function mapPaymentError(error: PaymentServiceError): NextResponse<ErrorResponse
 }
 
 async function getSessionUser(): Promise<AuthenticatedPaymentUser | null> {
+  const { getCurrentAuthSession } = await import('../../../../../lib/auth-session');
   const session = await getCurrentAuthSession();
   return session?.user?.id
     ? { id: session.user.id, role: session.user.role ?? null }

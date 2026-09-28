@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
-export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']);
+export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'EXPIRED']);
 export const carUnitStatusEnum = pgEnum('car_unit_status', ['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
 export const tripTypeEnum = pgEnum('trip_type', ['DALAM_KOTA', 'LUAR_KOTA']);
 export const demandLevelEnum = pgEnum('demand_level', ['sepi', 'normal', 'ramai']);
@@ -79,10 +79,13 @@ export const verifications = pgTable('verifications', {
 
 export const cars = pgTable('cars', {
   id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
   brand: text('brand').notNull(),
   model: text('model').notNull(),
   category: text('category').notNull(),
   year: integer('year').notNull(),
+  transmission: text('transmission').default('Manual').notNull(),
+  capacitySeats: integer('capacitySeats').default(7).notNull(),
   basePricePerDay: integer('basePricePerDay').notNull(),
   isAvailable: boolean('isAvailable').default(true).notNull(),
   imageUrl: text('imageUrl'),

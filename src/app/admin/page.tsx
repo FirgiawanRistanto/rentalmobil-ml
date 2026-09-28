@@ -12,10 +12,8 @@ import {
   type AdminDashboardResponse,
 } from '@/lib/adminDashboardUi';
 import {
-  formatDateId,
   formatDateTimeId,
   formatRupiahId,
-  getTripTypeLabel,
   PaymentUiError,
 } from '@/lib/paymentUi';
 import { readAdminDashboardClient } from '@/services/adminDashboardClient';
@@ -53,20 +51,6 @@ function MetricCard({
       <p className="mt-1 text-2xl font-black text-slate-900 dark:text-white">{value}</p>
       {helper ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{helper}</p> : null}
     </div>
-  );
-}
-
-function StatusBadge({
-  bookingStatus,
-  paymentStatus,
-}: {
-  bookingStatus: AdminDashboardResponse['recentBookings'][number]['bookingStatus'];
-  paymentStatus?: AdminDashboardResponse['recentBookings'][number]['paymentStatus'];
-}) {
-  return (
-    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${getAdminStatusBadgeClass(bookingStatus, paymentStatus)}`}>
-      {getAdminBookingStatusLabel(bookingStatus, paymentStatus)}
-    </span>
   );
 }
 
@@ -111,9 +95,6 @@ export default function AdminDashboardPage() {
   }, [refreshKey]);
 
   const metrics = dashboard?.metrics;
-  const activeFleetUnits = metrics?.activeFleetUnits ?? 0;
-  const availableFleetUnitsNow = metrics?.availableFleetUnitsNow ?? 0;
-  const blockedFleetUnitsNow = Math.max(0, activeFleetUnits - availableFleetUnitsNow);
 
   return (
     <div className="flex min-h-screen bg-background-light font-display text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
@@ -167,25 +148,11 @@ export default function AdminDashboardPage() {
                   tone="primary"
                 />
                 <MetricCard
-                  icon="upload_file"
-                  label="Menunggu Bukti Pembayaran"
-                  value={metrics.awaitingPaymentProof}
-                  helper="Booking PENDING aktif tanpa payment submission"
-                  tone="amber"
-                />
-                <MetricCard
-                  icon="fact_check"
-                  label="Menunggu Verifikasi"
-                  value={metrics.awaitingPaymentVerification}
-                  helper="Payment SUBMITTED dalam window review"
-                  tone="blue"
-                />
-                <MetricCard
-                  icon="verified"
-                  label="Booking Dikonfirmasi"
-                  value={metrics.confirmedBookings}
-                  helper={`${metrics.cancelledOrExpiredBookings} booking dibatalkan/kedaluwarsa`}
-                  tone="emerald"
+                  icon="directions_car"
+                  label="Unit Armada Aktif"
+                  value={metrics.activeFleetUnits}
+                  helper={`${metrics.availableFleetUnitsNow} unit tersedia hari ini`}
+                  tone="slate"
                 />
                 <MetricCard
                   icon="payments"
@@ -195,30 +162,15 @@ export default function AdminDashboardPage() {
                   tone="emerald"
                 />
                 <MetricCard
-                  icon="directions_car"
-                  label="Unit Armada Aktif"
-                  value={metrics.activeFleetUnits}
-                  helper={`${metrics.availableFleetUnitsNow} unit tersedia hari ini`}
-                  tone="slate"
-                />
-                <MetricCard
-                  icon="event_busy"
-                  label="Unit Terblokir Hari Ini"
-                  value={blockedFleetUnitsNow}
-                  helper="CONFIRMED atau PENDING aktif pada tanggal hari ini"
-                  tone={blockedFleetUnitsNow > 0 ? 'red' : 'emerald'}
-                />
-                <MetricCard
-                  icon="assignment_return"
-                  label="Dibatalkan / Kedaluwarsa"
-                  value={metrics.cancelledOrExpiredBookings}
-                  helper="Booking CANCELLED atau payment EXPIRED"
-                  tone="red"
+                  icon="fact_check"
+                  label="Menunggu Verifikasi"
+                  value={metrics.awaitingPaymentVerification}
+                  helper="Payment SUBMITTED dalam window review"
+                  tone="blue"
                 />
               </section>
 
-              <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                <div className="xl:col-span-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
                   <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-5 dark:border-slate-800">
                     <div>
                       <h2 className="text-base font-black text-slate-900 dark:text-white">Pembayaran Terbaru</h2>
@@ -271,7 +223,9 @@ export default function AdminDashboardPage() {
                                 {formatRupiahId(payment.amount)}
                               </td>
                               <td className="px-5 py-4">
-                                <StatusBadge bookingStatus={payment.bookingStatus} paymentStatus={payment.paymentStatus} />
+                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold ${getAdminStatusBadgeClass(payment.bookingStatus, payment.paymentStatus)}`}>
+                                  {getAdminBookingStatusLabel(payment.bookingStatus, payment.paymentStatus)}
+                                </span>
                               </td>
                               <td className="px-5 py-4 text-right">
                                 <Link
@@ -288,39 +242,6 @@ export default function AdminDashboardPage() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <h2 className="text-base font-black text-slate-900 dark:text-white">Booking Terbaru</h2>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Harga final diambil dari booking price snapshot.</p>
-
-                  <div className="mt-5 space-y-4">
-                    {dashboard.recentBookings.length === 0 ? (
-                      <p className="rounded-lg bg-slate-50 p-4 text-sm text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
-                        Belum ada booking.
-                      </p>
-                    ) : (
-                      dashboard.recentBookings.map((booking) => (
-                        <div className="rounded-lg border border-slate-100 p-4 dark:border-slate-800" key={booking.bookingId}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-mono text-xs font-bold text-primary">#{shortId(booking.bookingId)}</p>
-                              <p className="mt-1 text-sm font-bold text-slate-900 dark:text-white">{booking.car.name}</p>
-                              <p className="text-xs text-slate-500">{booking.customer.name}</p>
-                            </div>
-                            <StatusBadge bookingStatus={booking.bookingStatus} paymentStatus={booking.paymentStatus} />
-                          </div>
-                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
-                            <p>{formatDateId(booking.rental.pickupDate)}</p>
-                            <p className="text-right">{booking.rental.durationDays} hari</p>
-                            <p>{getTripTypeLabel(booking.rental.tripType)}</p>
-                            <p className="text-right font-bold text-slate-900 dark:text-white">{formatRupiahId(booking.totalInvoiceDisplay)}</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
               </section>
             </>
           ) : null}

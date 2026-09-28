@@ -4,6 +4,7 @@ import {
   MAX_PAYMENT_PROOF_SIZE_BYTES,
   PAYMENT_REVIEW_EXPIRY_HOURS,
   PaymentServiceError,
+  cancelBookingReservation,
   getAdminPaymentProof,
   listAdminPayments,
   readBookingPayment,
@@ -106,6 +107,8 @@ function fakeRepository(options: {
     verified: false,
     rejectedReason: null as string | null,
     expired: false,
+    expiredBooking: false,
+    cancelledBooking: false,
   };
 
   const repository = {
@@ -129,12 +132,18 @@ function fakeRepository(options: {
         async extendBookingReservation(_bookingId, reservationExpiresAt) {
           state.extendedReservation = reservationExpiresAt;
         },
+        async expireBooking() {
+          state.expiredBooking = true;
+        },
+        async cancelBooking() {
+          state.cancelledBooking = true;
+        },
         async lockPaymentForReview() {
           return (options.reviewPayment === null
             ? null
             : reviewPayment(options.reviewPayment)) as Awaited<ReturnType<PaymentTransactionRepository['lockPaymentForReview']>>;
         },
-        async markPaymentExpiredAndCancelBooking() {
+        async markPaymentExpiredAndExpireBooking() {
           state.expired = true;
         },
         async verifyPayment() {
@@ -278,6 +287,22 @@ describe('submitPaymentProof', () => {
     );
   });
 
+  it('marks expired reservations as EXPIRED before rejecting late proof uploads', async () => {
+    const expired = fakeRepository({
+      booking: { reservationExpiresAt: new Date('2026-06-10T09:59:00.000Z') },
+    });
+
+    await assert.rejects(
+      () => submitPaymentProof({ bookingId, proofFile: paymentProof() }, user, {
+        repository: expired.repository,
+        now: () => now,
+      }),
+      (error) => error instanceof PaymentServiceError && error.code === 'RESERVATION_EXPIRED',
+    );
+
+    assert.equal(expired.state.expiredBooking, true);
+  });
+
   it('validates proof file type and size before storage', async () => {
     const { repository } = fakeRepository();
     await assert.rejects(
@@ -305,6 +330,38 @@ describe('submitPaymentProof', () => {
 
     assert.deepEqual(storage.savedKeys, ['stored-proof.png']);
     assert.deepEqual(storage.deletedKeys, ['stored-proof.png']);
+  });
+});
+
+describe('cancelBookingReservation', () => {
+  it('lets the booking owner cancel an active unpaid PENDING reservation', async () => {
+    const { repository, state } = fakeRepository();
+
+    const result = await cancelBookingReservation(bookingId, user, { repository, now: () => now });
+
+    assert.equal(result.bookingStatus, 'CANCELLED');
+    assert.equal(result.cancelledAt, now.toISOString());
+    assert.equal(state.cancelledBooking, true);
+  });
+
+  it('rejects cancellation after payment submission or reservation expiry', async () => {
+    await assert.rejects(
+      () =>
+        cancelBookingReservation(bookingId, user, {
+          repository: fakeRepository({ existingPayment: { id: paymentId } }).repository,
+          now: () => now,
+        }),
+      (error) => error instanceof PaymentServiceError && error.code === 'BOOKING_CANNOT_BE_CANCELLED',
+    );
+
+    const expired = fakeRepository({
+      booking: { reservationExpiresAt: new Date('2026-06-10T09:59:00.000Z') },
+    });
+    await assert.rejects(
+      () => cancelBookingReservation(bookingId, user, { repository: expired.repository, now: () => now }),
+      (error) => error instanceof PaymentServiceError && error.code === 'RESERVATION_EXPIRED',
+    );
+    assert.equal(expired.state.expiredBooking, true);
   });
 });
 
@@ -463,7 +520,7 @@ describe('admin payment queue/detail/proof', () => {
     const { repository, state } = fakeRepository({
       adminDetailRow: adminPaymentDetailRow({
         paymentStatus: 'EXPIRED',
-        bookingStatus: 'CANCELLED',
+        bookingStatus: 'EXPIRED',
         reviewExpiresAt: new Date('2026-06-10T09:00:00.000Z'),
         reservationExpiresAt: new Date('2026-06-10T09:00:00.000Z'),
       }),
@@ -473,7 +530,7 @@ describe('admin payment queue/detail/proof', () => {
 
     assert.equal(state.expired, true);
     assert.equal(result.paymentStatus, 'EXPIRED');
-    assert.equal(result.bookingStatus, 'CANCELLED');
+    assert.equal(result.bookingStatus, 'EXPIRED');
     assert.equal(result.canReview, false);
     assert.equal(result.priceSnapshot.totalInvoiceDisplay, 4623000);
   });

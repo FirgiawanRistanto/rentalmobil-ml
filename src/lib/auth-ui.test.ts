@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   AuthUiError,
+  getAuthRedirectForRole,
+  getAuthUserRole,
   getCallbackURLFromSearch,
+  getDefaultAuthRedirectForRole,
   getSafeAuthCallbackURL,
   loginCustomer,
+  readAuthenticatedRole,
   registerCustomer,
   signOutCurrentUser,
   validateRegisterForm,
@@ -97,7 +101,7 @@ describe('auth UI helpers', () => {
       },
     };
 
-    await loginCustomer(
+    const loginData = await loginCustomer(
       {
         email: ' CUSTOMER@example.test ',
         password: 'password-6b',
@@ -106,6 +110,7 @@ describe('auth UI helpers', () => {
       successClient,
     );
 
+    assert.deepEqual(loginData, { user: { id: 'user-1' } });
     assert.deepEqual(receivedPayload, {
       email: 'customer@example.test',
       password: 'password-6b',
@@ -125,6 +130,34 @@ describe('auth UI helpers', () => {
         error instanceof AuthUiError &&
         error.message === 'Email atau kata sandi tidak sesuai.',
     );
+  });
+
+  it('uses role-aware default redirects after login', () => {
+    assert.equal(getDefaultAuthRedirectForRole('ADMIN'), '/admin');
+    assert.equal(getDefaultAuthRedirectForRole('CUSTOMER'), '/dashboard');
+    assert.equal(getDefaultAuthRedirectForRole(null), '/dashboard');
+
+    assert.equal(getAuthRedirectForRole('', 'ADMIN'), '/admin');
+    assert.equal(getAuthRedirectForRole('', 'CUSTOMER'), '/dashboard');
+    assert.equal(
+      getAuthRedirectForRole('?callbackURL=%2Fbooking%2Fconfirm%3FquoteId%3Dquote-1', 'ADMIN'),
+      '/booking/confirm?quoteId=quote-1',
+    );
+    assert.equal(getAuthRedirectForRole('?callbackURL=https%3A%2F%2Fevil.example', 'ADMIN'), '/admin');
+  });
+
+  it('reads user role from Better Auth response shapes', async () => {
+    assert.equal(getAuthUserRole({ user: { role: 'ADMIN' } }), 'ADMIN');
+    assert.equal(getAuthUserRole({ data: { user: { role: 'CUSTOMER' } } }), 'CUSTOMER');
+    assert.equal(getAuthUserRole({ user: { name: 'No Role' } }), null);
+
+    const role = await readAuthenticatedRole({
+      async getSession() {
+        return { data: { user: { id: 'admin-1', role: 'ADMIN' } }, error: null };
+      },
+    });
+
+    assert.equal(role, 'ADMIN');
   });
 
   it('allows only internal callback URLs', () => {

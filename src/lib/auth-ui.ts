@@ -1,5 +1,6 @@
 export const MIN_AUTH_PASSWORD_LENGTH = 8;
 export const DEFAULT_AUTH_REDIRECT = '/dashboard';
+export const ADMIN_AUTH_REDIRECT = '/admin';
 
 export interface RegisterFormInput {
   name: string;
@@ -41,6 +42,10 @@ export interface AuthClientForLogin {
       rememberMe?: boolean;
     }): Promise<AuthClientResult>;
   };
+}
+
+export interface AuthClientForSession {
+  getSession(): Promise<AuthClientResult>;
 }
 
 export interface AuthClientForSignOut {
@@ -87,6 +92,52 @@ export function getSafeAuthCallbackURL(
 export function getCallbackURLFromSearch(search: string): string {
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
   return getSafeAuthCallbackURL(params.get('callbackURL'));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+export function getAuthUserRole(data: unknown): string | null {
+  if (!isRecord(data)) {
+    return null;
+  }
+
+  const user = data.user;
+  if (isRecord(user) && typeof user.role === 'string') {
+    return user.role;
+  }
+
+  const nestedData = data.data;
+  if (isRecord(nestedData)) {
+    return getAuthUserRole(nestedData);
+  }
+
+  return null;
+}
+
+export function getDefaultAuthRedirectForRole(role: string | null | undefined): string {
+  return role === 'ADMIN' ? ADMIN_AUTH_REDIRECT : DEFAULT_AUTH_REDIRECT;
+}
+
+export function getAuthRedirectForRole(search: string, role: string | null | undefined): string {
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  return getSafeAuthCallbackURL(
+    params.get('callbackURL'),
+    getDefaultAuthRedirectForRole(role),
+  );
+}
+
+export async function readAuthenticatedRole(
+  client: AuthClientForSession,
+): Promise<string | null> {
+  const result = await client.getSession();
+
+  if (result.error) {
+    return null;
+  }
+
+  return getAuthUserRole(result.data);
 }
 
 export function validateRegisterForm(input: RegisterFormInput) {
@@ -175,11 +226,12 @@ export async function registerCustomer(
 export async function loginCustomer(
   input: LoginFormInput,
   client: AuthClientForLogin,
-): Promise<void> {
+): Promise<unknown> {
   const payload = validateLoginForm(input);
   const result = await client.signIn.email(payload);
 
   assertAuthClientSuccess(result);
+  return result.data;
 }
 
 export async function signOutCurrentUser(client: AuthClientForSignOut): Promise<void> {

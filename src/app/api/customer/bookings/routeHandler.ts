@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCurrentAuthSession } from '../../../../lib/auth-session';
 import type { CustomerBookingsResponse } from '../../../../lib/customerDashboardUi';
 import { PaymentServiceError } from '../../../../services/paymentService';
 import { listCustomerDashboardBookings } from '../../../../services/customerBookingDashboardService';
@@ -32,6 +31,7 @@ function errorResponse(code: string, message: string, status: number): NextRespo
 }
 
 async function getSessionUser(): Promise<CustomerBookingsRouteUser | null> {
+  const { getCurrentAuthSession } = await import('../../../../lib/auth-session');
   const session = await getCurrentAuthSession();
 
   return session?.user?.id

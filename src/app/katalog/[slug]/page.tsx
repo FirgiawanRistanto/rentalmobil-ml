@@ -69,10 +69,12 @@ export default function CarDetailPage() {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         <div className="flex flex-col gap-6 lg:col-span-8">
           <div className="overflow-hidden rounded-xl bg-white shadow-sm dark:bg-slate-900">
-            <div className="relative flex aspect-video w-full items-center justify-center bg-slate-100 bg-cover bg-center bg-no-repeat dark:bg-slate-800">
-              <div
-                className="h-full w-full bg-cover bg-center transition-transform duration-500 hover:scale-105"
-                style={{ backgroundImage: `url('${car.image}')` }}
+            <div className="relative h-64 w-full overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 sm:h-72 lg:h-[529px]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                alt={car.name}
+                className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                src={car.image}
               />
             </div>
           </div>
@@ -143,21 +145,6 @@ export default function CarDetailPage() {
 
         <aside className="flex flex-col gap-6 lg:col-span-4">
           <DynamicPricingQuoteForm car={car} />
-
-          <div className="group relative h-48 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{
-                backgroundImage:
-                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDnnRr8l5NIACYshqTaJRzbJIAAT48JZRqQ4WpgTkAGvC3GEleqZp-gbPr61rD0VaKuP-5AgNMOJi80KQu6jWmQ4MJPfIHftbp-yevq0SWM88OIhKfHE_Eau9-GUffSBANxOwVDRrg3lLOclFAL-ewaFgRYm4zPlWnQM0DR5qd6LqQEPK6gpzvKjrEoLWdLB7KLSXAam9Sbkgxs2MvQg3Lf9gpNKRy7Io_vPD9R2Lj7_I-cpxo6l-sq4l-yAL8X65QywzRsIOxpyQ')",
-              }}
-            />
-            <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/10" />
-            <div className="absolute bottom-3 left-3 flex items-center gap-1 rounded-lg bg-white/90 px-3 py-1.5 text-xs font-bold shadow-sm dark:bg-slate-900/90">
-              <span className="material-symbols-outlined text-sm text-primary">location_on</span>
-              Bandar Lampung
-            </div>
-          </div>
         </aside>
       </div>
     </main>

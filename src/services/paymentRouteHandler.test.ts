@@ -6,8 +6,9 @@ import { createGetAdminPaymentProofHandler } from '../app/api/admin/payments/[pa
 import { createPostRejectPaymentHandler } from '../app/api/admin/payments/[paymentId]/reject/routeHandler';
 import { createPostVerifyPaymentHandler } from '../app/api/admin/payments/[paymentId]/verify/routeHandler';
 import { createGetBookingPaymentHandler } from '../app/api/bookings/[bookingId]/routeHandler';
+import { createPostCancelBookingHandler } from '../app/api/bookings/[bookingId]/cancel/routeHandler';
 import { createPostPaymentProofHandler } from '../app/api/bookings/[bookingId]/payment-proof/routeHandler';
-import { PaymentServiceError, type SubmitPaymentProofResult } from './paymentService';
+import { PaymentServiceError, type CancelBookingReservationResult, type SubmitPaymentProofResult } from './paymentService';
 
 const bookingId = '11111111-1111-4111-8111-111111111111';
 const paymentId = '22222222-2222-4222-8222-222222222222';
@@ -55,6 +56,15 @@ function paymentResult(overrides: Partial<SubmitPaymentProofResult> = {}): Submi
     bookingStatus: 'PENDING',
     reservationExpiresAt: '2026-06-11T10:00:00.000Z',
     nextStep: 'WAITING_ADMIN_VERIFICATION',
+    ...overrides,
+  };
+}
+
+function cancelResult(overrides: Partial<CancelBookingReservationResult> = {}): CancelBookingReservationResult {
+  return {
+    bookingId,
+    bookingStatus: 'CANCELLED',
+    cancelledAt: '2026-06-10T10:00:00.000Z',
     ...overrides,
   };
 }
@@ -116,6 +126,52 @@ describe('payment proof route handler', () => {
 
     assert.equal(response.status, 413);
     assert.equal(body.error.code, 'PAYMENT_PROOF_TOO_LARGE');
+  });
+});
+
+describe('booking reservation cancel route handler', () => {
+  it('cancels an active unpaid reservation for the authenticated owner', async () => {
+    let receivedBookingId = '';
+    let receivedUserId = '';
+    const handler = createPostCancelBookingHandler({
+      getCurrentUser: async () => user,
+      service: {
+        async cancelBookingReservation(routeBookingId, routeUser) {
+          receivedBookingId = routeBookingId;
+          receivedUserId = routeUser?.id ?? '';
+          return cancelResult();
+        },
+      },
+    });
+
+    const response = await handler(new Request(`http://localhost/api/bookings/${bookingId}/cancel`, { method: 'POST' }), {
+      params: { bookingId },
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(receivedBookingId, bookingId);
+    assert.equal(receivedUserId, user.id);
+    assert.equal(body.bookingStatus, 'CANCELLED');
+  });
+
+  it('maps invalid cancellation lifecycle state to conflict', async () => {
+    const handler = createPostCancelBookingHandler({
+      getCurrentUser: async () => user,
+      service: {
+        async cancelBookingReservation() {
+          throw new PaymentServiceError('BOOKING_CANNOT_BE_CANCELLED', 'cannot cancel');
+        },
+      },
+    });
+
+    const response = await handler(new Request(`http://localhost/api/bookings/${bookingId}/cancel`, { method: 'POST' }), {
+      params: { bookingId },
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 409);
+    assert.equal(body.error.code, 'BOOKING_CANNOT_BE_CANCELLED');
   });
 });
 

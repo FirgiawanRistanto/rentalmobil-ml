@@ -98,8 +98,8 @@ describe('timestamp integrity for v4 operational deadlines', { skip: !pool }, ()
         [userId, `timestamp-${Date.now()}@example.test`],
       );
       await client.query(
-        `insert into cars (id, brand, model, category, year, "basePricePerDay", "isAvailable")
-         values ($1, 'Toyota', 'Timestamp', 'SUV', 2026, 1500000, true)`,
+        `insert into cars (id, slug, brand, model, category, year, "basePricePerDay", "isAvailable")
+         values ($1::uuid, concat('timestamp-', $1::uuid::text), 'Toyota', 'Timestamp', 'SUV', 2026, 1500000, true)`,
         [carId],
       );
       const quote = await client.query<{ id: string }>(
@@ -212,8 +212,8 @@ describe('timestamp integrity for v4 operational deadlines', { skip: !pool }, ()
         [userId, `timestamp-availability-${Date.now()}@example.test`],
       );
       await client.query(
-        `insert into cars (id, brand, model, category, year, "basePricePerDay", "isAvailable")
-         values ($1, 'Toyota', 'Timestamp Availability', 'SUV', 2026, 1500000, true)`,
+        `insert into cars (id, slug, brand, model, category, year, "basePricePerDay", "isAvailable")
+         values ($1::uuid, concat('timestamp-availability-', $1::uuid::text), 'Toyota', 'Timestamp Availability', 'SUV', 2026, 1500000, true)`,
         [carId],
       );
       await client.query(

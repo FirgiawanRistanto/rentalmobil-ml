@@ -170,6 +170,7 @@ function mapCustomerBookingRow(
     },
     actions: {
       canUploadPaymentProof: displayStatus === 'WAITING_PAYMENT_PROOF',
+      canCancelReservation: displayStatus === 'WAITING_PAYMENT_PROOF',
       paymentPath: buildCustomerBookingPaymentPath(row.bookingId),
     },
   };

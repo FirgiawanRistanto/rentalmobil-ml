@@ -47,10 +47,17 @@ describe('legacy route isolation for Dynamic Pricing v4 flow', () => {
     const paymentClientSource = readFileSync('src/components/payment/CustomerPaymentClient.tsx', 'utf8');
     const paymentUiSource = readFileSync('src/lib/paymentUi.ts', 'utf8');
     const adminSidebarSource = readFileSync('src/components/admin/AdminSidebar.tsx', 'utf8');
+    const navbarSource = readFileSync('src/components/layout/Navbar.tsx', 'utf8');
+    const footerSource = readFileSync('src/components/layout/Footer.tsx', 'utf8');
+    const heroSource = readFileSync('src/components/home/Hero.tsx', 'utf8');
+    const aboutPageSource = readFileSync('src/app/tentang-kami/page.tsx', 'utf8');
 
     assert.equal(homeSource.includes('href="/booking/'), false);
     assert.equal(homeSource.includes('buildFeaturedCars'), true);
     assert.equal(homeSource.includes('href={`/katalog/${car.slug}`}'), true);
+    assert.equal(homeSource.includes('href="#about"'), false);
+    assert.equal(homeSource.includes('id="about"'), false);
+    assert.equal(homeSource.includes('href="/tentang-kami"'), false);
     assert.equal(dashboardSource.includes('window.location.href = `/payment/'), false);
     assert.equal(bookingLegacySource.includes('redirect(`/katalog/'), true);
     assert.equal(paymentLegacySource.includes('redirect(`/booking/payment/'), true);
@@ -64,6 +71,16 @@ describe('legacy route isolation for Dynamic Pricing v4 flow', () => {
     assert.equal(paymentClientSource.includes('uploadPaymentProofClient'), true);
     assert.equal(paymentUiSource.includes("BOOKING_PAYMENT_ROUTE_PREFIX = '/booking/payment'"), true);
     assert.equal(paymentUiSource.includes('payment-proof'), true);
-    assert.equal(adminSidebarSource.includes("href: '/admin/payments'"), true);
+    assert.equal(adminSidebarSource.includes("href: '/admin/transaksi'"), true);
+    assert.equal(adminSidebarSource.includes("href: '/admin/payments'"), false);
+    assert.equal(navbarSource.includes('href="/tentang-kami"'), true);
+    assert.equal(footerSource.includes('href="/tentang-kami"'), true);
+    assert.equal(heroSource.includes('href="/tentang-kami"'), true);
+    assert.equal(navbarSource.includes('/#about'), false);
+    assert.equal(footerSource.includes('/#about'), false);
+    assert.equal(heroSource.includes('/#about'), false);
+    assert.equal(aboutPageSource.includes('export default function AboutPage'), true);
+    assert.equal(aboutPageSource.includes('XYZ Rental'), true);
+    assert.equal(aboutPageSource.includes('wilayah Lampung'), true);
   });
 });

@@ -25,6 +25,8 @@ describe('admin dashboard UI helpers', () => {
     assert.equal(getAdminBookingStatusLabel('PENDING', 'SUBMITTED'), 'Menunggu Verifikasi');
     assert.equal(getAdminBookingStatusLabel('CONFIRMED', 'VERIFIED'), 'Dikonfirmasi');
     assert.equal(getAdminBookingStatusLabel('CANCELLED', 'REJECTED'), 'Ditolak');
+    assert.equal(getAdminBookingStatusLabel('CANCELLED', null), 'Dibatalkan');
+    assert.equal(getAdminBookingStatusLabel('EXPIRED', null), 'Kedaluwarsa');
     assert.equal(getAdminBookingStatusLabel('CANCELLED', 'EXPIRED'), 'Kedaluwarsa');
   });
 

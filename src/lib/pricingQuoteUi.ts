@@ -1,3 +1,5 @@
+import { getCarCategoryDisplayLabel } from './carCategoryUi';
+
 export const MAX_QUOTE_DURATION_DAYS = 30;
 export const PRICING_QUOTE_ENDPOINT = '/api/pricing/quotes';
 export const LEGACY_PRICING_ESTIMATE_ENDPOINT = '/api/pricing/estimate';
@@ -210,6 +212,52 @@ export function getDemandDisplayLabel(demandLevel: DemandLevel): string {
   }
 
   return 'Ketersediaan Tinggi';
+}
+
+export function getAvailabilityStatusShortLabel(demandLevel: DemandLevel): string {
+  if (demandLevel === 'ramai') {
+    return 'Permintaan Tinggi';
+  }
+
+  if (demandLevel === 'normal') {
+    return 'Normal';
+  }
+
+  return 'Tinggi';
+}
+
+function isAvailabilityReason(reason: string): boolean {
+  const normalizedReason = reason.toLowerCase();
+
+  return normalizedReason.includes('ketersediaan') || (
+    normalizedReason.includes('armada') &&
+    normalizedReason.includes('kategori')
+  );
+}
+
+function getAvailabilityReasonLabel(demandLevel: DemandLevel): string {
+  if (demandLevel === 'ramai') {
+    return 'sedang terbatas';
+  }
+
+  if (demandLevel === 'normal') {
+    return 'berada pada tingkat normal';
+  }
+
+  return 'masih tinggi';
+}
+
+export function buildInvoicePricingReasons(
+  quote: Pick<PricingQuoteResponse, 'car' | 'pricingContext' | 'pricingReasons'>,
+): string[] {
+  const category = getCarCategoryDisplayLabel(quote.car.category);
+  const categoryText = category ? ` kategori ${category}` : '';
+  const availabilityReason =
+    `Ketersediaan armada${categoryText} ${getAvailabilityReasonLabel(quote.pricingContext.demandLevel)} ` +
+    `(${formatPercentId(quote.pricingContext.availabilityRatio)}).`;
+  const nonAvailabilityReasons = quote.pricingReasons.filter((reason) => !isAvailabilityReason(reason));
+
+  return [availabilityReason, ...nonAvailabilityReasons];
 }
 
 export function isQuoteExpired(expiresAt: string, referenceDate = new Date()): boolean {

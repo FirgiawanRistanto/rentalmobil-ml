@@ -65,6 +65,7 @@ describe('listCustomerDashboardBookings', () => {
     assert.equal(result.bookings[0].pricing.modelVersion, 'rf_adjustment_v4_final');
     assert.equal(result.bookings[0].displayStatus, 'WAITING_PAYMENT_PROOF');
     assert.equal(result.bookings[0].actions.canUploadPaymentProof, true);
+    assert.equal(result.bookings[0].actions.canCancelReservation, true);
     assert.equal(result.bookings[0].actions.paymentPath, `/booking/payment/${result.bookings[0].bookingId}`);
     assert.equal(JSON.stringify(result).includes('proofStorageKey'), false);
   });
@@ -110,5 +111,6 @@ describe('listCustomerDashboardBookings', () => {
     );
     assert.equal(result.bookings[2].payment.rejectionReason, 'Bukti transfer tidak terbaca.');
     assert.equal(result.bookings[3].actions.canUploadPaymentProof, false);
+    assert.equal(result.bookings[3].actions.canCancelReservation, false);
   });
 });

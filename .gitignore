@@ -59,3 +59,4 @@ ml-service/le_model.pkl
 
 # Local development uploads
 storage/payment-proofs/
+public/uploads/cars/

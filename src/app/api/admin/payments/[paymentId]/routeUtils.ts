@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCurrentAuthSession } from '../../../../../lib/auth-session';
 import {
   PaymentServiceError,
   type AuthenticatedPaymentUser,
@@ -55,6 +54,7 @@ export function mapAdminPaymentError(error: PaymentServiceError): NextResponse<E
 }
 
 export async function getAdminRouteUser(): Promise<AuthenticatedPaymentUser | null> {
+  const { getCurrentAuthSession } = await import('../../../../../lib/auth-session');
   const session = await getCurrentAuthSession();
   return session?.user?.id
     ? { id: session.user.id, role: session.user.role ?? null }

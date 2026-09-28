@@ -13,6 +13,7 @@ describe('mapCarCategoryToModelCategory', () => {
     assert.equal(mapCarCategoryToModelCategory('MPV'), 'mpv');
     assert.equal(mapCarCategoryToModelCategory('VAN'), 'van');
     assert.equal(mapCarCategoryToModelCategory('SEDAN'), 'passenger_car');
+    assert.equal(mapCarCategoryToModelCategory('passenger_car'), 'passenger_car');
     assert.equal(mapCarCategoryToModelCategory('CITY_CAR'), 'passenger_car');
     assert.equal(mapCarCategoryToModelCategory('city car'), 'passenger_car');
   });

@@ -40,6 +40,7 @@ export interface CustomerDashboardBooking {
   };
   actions: {
     canUploadPaymentProof: boolean;
+    canCancelReservation: boolean;
     paymentPath: string;
   };
 }
@@ -89,8 +90,12 @@ export function deriveCustomerBookingDisplayStatus(
     return 'COMPLETED';
   }
 
-  if (booking.bookingStatus === 'CONFIRMED' && booking.payment.paymentStatus === 'VERIFIED') {
+  if (booking.bookingStatus === 'CONFIRMED') {
     return 'CONFIRMED';
+  }
+
+  if (booking.bookingStatus === 'EXPIRED') {
+    return 'EXPIRED';
   }
 
   if (booking.bookingStatus === 'CANCELLED') {
@@ -118,6 +123,12 @@ export function canUploadPaymentProofFromDashboard(
   booking: Pick<CustomerDashboardBooking, 'displayStatus'>,
 ): boolean {
   return booking.displayStatus === 'WAITING_PAYMENT_PROOF';
+}
+
+export function canCancelReservationFromDashboard(
+  booking: Pick<CustomerDashboardBooking, 'actions' | 'displayStatus'>,
+): boolean {
+  return booking.displayStatus === 'WAITING_PAYMENT_PROOF' && booking.actions.canCancelReservation;
 }
 
 export function getCustomerDisplayStatusLabel(status: CustomerBookingDisplayStatus): string {

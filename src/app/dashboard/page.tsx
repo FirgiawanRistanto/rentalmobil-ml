@@ -3,9 +3,12 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { authClient } from '@/lib/auth-client';
 import { signOutCurrentUser } from '@/lib/auth-ui';
+import { getCarCategoryDisplayLabel } from '@/lib/carCategoryUi';
 import {
+  canCancelReservationFromDashboard,
   canUploadPaymentProofFromDashboard,
   getCustomerBookingActionLabel,
   getCustomerDisplayStatusBadgeClass,
@@ -22,6 +25,7 @@ import {
 } from '@/lib/paymentUi';
 import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
 import { listCustomerDashboardBookingsClient } from '@/services/customerBookingDashboardClient';
+import { cancelBookingReservationClient } from '@/services/paymentClient';
 
 function DashboardMetric({
   icon,
@@ -63,8 +67,17 @@ function deadlineLabel(booking: CustomerDashboardBooking): string | null {
   return null;
 }
 
-function BookingCard({ booking }: { booking: CustomerDashboardBooking }) {
+function BookingCard({
+  booking,
+  isCancelling,
+  onCancel,
+}: {
+  booking: CustomerDashboardBooking;
+  isCancelling: boolean;
+  onCancel: (booking: CustomerDashboardBooking) => void;
+}) {
   const canUpload = canUploadPaymentProofFromDashboard(booking);
+  const canCancel = canCancelReservationFromDashboard(booking);
   const relevantDeadline = deadlineLabel(booking);
   const actionHref = canUpload || booking.payment.paymentStatus
     ? booking.actions.paymentPath
@@ -77,7 +90,7 @@ function BookingCard({ booking }: { booking: CustomerDashboardBooking }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">{booking.car.name}</h3>
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              {booking.car.category}
+              {getCarCategoryDisplayLabel(booking.car.category)}
             </span>
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -131,12 +144,16 @@ function BookingCard({ booking }: { booking: CustomerDashboardBooking }) {
         >
           {canUpload ? 'Upload Bukti Pembayaran' : getCustomerBookingActionLabel(booking)}
         </Link>
-        <Link
-          className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
-          href="/katalog"
-        >
-          Pesan Lagi
-        </Link>
+        {canCancel ? (
+          <button
+            className="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+            disabled={isCancelling}
+            onClick={() => onCancel(booking)}
+            type="button"
+          >
+            {isCancelling ? 'Membatalkan...' : 'Batalkan Reservasi'}
+          </button>
+        ) : null}
       </div>
     </article>
   );
@@ -169,41 +186,30 @@ export default function UserDashboard() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [dashboard, setDashboard] = useState<CustomerBookingsResponse | null>(null);
   const [isLoadingBookings, setIsLoadingBookings] = useState(true);
+  const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const displayName = dashboard?.customer.name || user?.name || user?.email || 'Customer';
 
-  useEffect(() => {
-    let mounted = true;
+  async function loadDashboardBookings() {
+    setIsLoadingBookings(true);
+    setBookingError(null);
 
-    async function loadDashboard() {
-      setIsLoadingBookings(true);
-      setBookingError(null);
-
-      try {
-        const result = await listCustomerDashboardBookingsClient();
-        if (mounted) {
-          setDashboard(result);
-        }
-      } catch (error) {
-        if (mounted) {
-          setBookingError(
-            error instanceof PaymentUiError
-              ? error.message
-              : 'Dashboard booking belum dapat dibaca.',
-          );
-        }
-      } finally {
-        if (mounted) {
-          setIsLoadingBookings(false);
-        }
-      }
+    try {
+      const result = await listCustomerDashboardBookingsClient();
+      setDashboard(result);
+    } catch (error) {
+      setBookingError(
+        error instanceof PaymentUiError
+          ? error.message
+          : 'Dashboard booking belum dapat dibaca.',
+      );
+    } finally {
+      setIsLoadingBookings(false);
     }
+  }
 
-    loadDashboard();
-
-    return () => {
-      mounted = false;
-    };
+  useEffect(() => {
+    void loadDashboardBookings();
   }, []);
 
   async function handleSignOut() {
@@ -221,6 +227,41 @@ export default function UserDashboard() {
     }
   }
 
+  async function handleCancelReservation(booking: CustomerDashboardBooking) {
+    if (!canCancelReservationFromDashboard(booking) || cancellingBookingId) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Batalkan reservasi?',
+      text: 'Unit akan dilepas dan booking ini tidak bisa dilanjutkan ke upload pembayaran.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Batalkan Reservasi',
+      cancelButtonText: 'Kembali',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setCancellingBookingId(booking.bookingId);
+    setBookingError(null);
+    try {
+      await cancelBookingReservationClient(booking.bookingId);
+      await loadDashboardBookings();
+    } catch (error) {
+      setBookingError(
+        error instanceof PaymentUiError
+          ? error.message
+          : 'Reservasi belum berhasil dibatalkan.',
+      );
+    } finally {
+      setCancellingBookingId(null);
+    }
+  }
+
   return (
     <div className="layout-container flex h-full min-h-screen grow flex-col bg-background-light font-display text-slate-900 dark:bg-background-dark dark:text-slate-100">
       <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900 lg:px-40">
@@ -233,8 +274,7 @@ export default function UserDashboard() {
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <Link className="text-sm font-semibold leading-normal text-primary" href="/dashboard">Dashboard</Link>
-            <Link className="text-sm font-medium leading-normal text-slate-600 transition-colors hover:text-primary dark:text-slate-400" href="/katalog">Armada</Link>
-            <Link className="text-sm font-medium leading-normal text-slate-600 transition-colors hover:text-primary dark:text-slate-400" href="#booking-saya">Pembayaran</Link>
+            <Link className="text-sm font-medium leading-normal text-slate-600 transition-colors hover:text-primary dark:text-slate-400" href="/katalog">Katalog</Link>
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-end gap-4">
@@ -265,9 +305,6 @@ export default function UserDashboard() {
           <section className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
               <h1 className="text-3xl font-black leading-tight tracking-tight text-slate-900 dark:text-white">Selamat datang, {displayName}</h1>
-              <p className="text-base font-normal leading-normal text-slate-500 dark:text-slate-400">
-                Pantau booking, pembayaran manual, dan status verifikasi dari data transaksi Anda.
-              </p>
             </div>
             <Link href="/katalog" className="flex h-12 min-w-[160px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-xl bg-primary px-6 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 active:scale-95">
               <span className="material-symbols-outlined text-lg">add_circle</span>
@@ -306,7 +343,12 @@ export default function UserDashboard() {
             ) : dashboard && dashboard.bookings.length > 0 ? (
               <div className="grid gap-4">
                 {dashboard.bookings.map((booking) => (
-                  <BookingCard booking={booking} key={booking.bookingId} />
+                  <BookingCard
+                    booking={booking}
+                    isCancelling={cancellingBookingId === booking.bookingId}
+                    key={booking.bookingId}
+                    onCancel={handleCancelReservation}
+                  />
                 ))}
               </div>
             ) : (
@@ -316,14 +358,8 @@ export default function UserDashboard() {
         </div>
       </main>
 
-      <footer className="mt-auto border-t border-slate-200 bg-white px-6 py-8 dark:border-slate-800 dark:bg-slate-900 lg:px-40">
-        <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 md:flex-row">
-          <p className="text-sm text-slate-500">Rental Mobil XYZ - Sistem informasi rental berbasis dynamic pricing.</p>
-          <div className="flex gap-6">
-            <Link className="text-sm text-slate-500 transition-colors hover:text-primary" href="/katalog">Katalog</Link>
-            <Link className="text-sm text-slate-500 transition-colors hover:text-primary" href="/dashboard">Dashboard</Link>
-          </div>
-        </div>
+      <footer className="mt-auto border-t border-slate-200 bg-white px-6 py-6 dark:border-slate-800 dark:bg-slate-900 lg:px-40">
+        <p className="text-center text-sm text-slate-500">© {new Date().getFullYear()} Rental Mobil XYZ. All rights reserved.</p>
       </footer>
     </div>
   );

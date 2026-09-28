@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
   buildCustomerBookingPaymentPath,
+  canCancelReservationFromDashboard,
   canUploadPaymentProofFromDashboard,
   deriveCustomerBookingDisplayStatus,
   getCustomerDisplayStatusLabel,
@@ -46,6 +47,7 @@ function dashboardBooking(overrides: Partial<CustomerDashboardBooking> = {}): Cu
     },
     actions: {
       canUploadPaymentProof: true,
+      canCancelReservation: true,
       paymentPath: '/booking/payment/11111111-1111-4111-8111-111111111111',
     },
     ...overrides,
@@ -88,6 +90,14 @@ describe('customer dashboard UI helpers', () => {
     );
     assert.equal(
       displayInput({
+        bookingStatus: 'EXPIRED',
+        reservationExpiresAt: null,
+        payment: { paymentStatus: null, reviewExpiresAt: null },
+      }),
+      'EXPIRED',
+    );
+    assert.equal(
+      displayInput({
         bookingStatus: 'CANCELLED',
         reservationExpiresAt: null,
         payment: { paymentStatus: 'EXPIRED', reviewExpiresAt: '2026-06-10T09:59:00.000Z' },
@@ -101,7 +111,9 @@ describe('customer dashboard UI helpers', () => {
     const expiredBooking = dashboardBooking({ displayStatus: 'EXPIRED' });
 
     assert.equal(canUploadPaymentProofFromDashboard(activeBooking), true);
+    assert.equal(canCancelReservationFromDashboard(activeBooking), true);
     assert.equal(canUploadPaymentProofFromDashboard(expiredBooking), false);
+    assert.equal(canCancelReservationFromDashboard(expiredBooking), false);
     assert.equal(buildCustomerBookingPaymentPath(activeBooking.bookingId), `/booking/payment/${activeBooking.bookingId}`);
     assert.equal(buildCustomerBookingPaymentPath(activeBooking.bookingId).startsWith('/payment/'), false);
   });

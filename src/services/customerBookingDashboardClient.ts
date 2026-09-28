@@ -54,6 +54,7 @@ function isDashboardBooking(value: unknown): value is CustomerDashboardBooking {
     (typeof payment.paymentStatus === 'string' || payment.paymentStatus === null) &&
     isRecord(actions) &&
     typeof actions.canUploadPaymentProof === 'boolean' &&
+    typeof actions.canCancelReservation === 'boolean' &&
     typeof actions.paymentPath === 'string'
   );
 }

@@ -1,5 +1,5 @@
-import AdminPaymentQueueClient from '@/components/admin/AdminPaymentQueueClient';
+import { redirect } from 'next/navigation';
 
-export default function AdminPaymentsPage() {
-  return <AdminPaymentQueueClient />;
+export default function AdminPaymentsCompatibilityPage() {
+  redirect('/admin/transaksi');
 }

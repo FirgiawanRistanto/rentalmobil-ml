@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { DbCar, DisplayCar, mapDbCarToDisplayCar } from '@/lib/data';
 import CarCard from '@/components/katalog/CarCard';
 
+const categoryFilters = ['Semua', 'City Car', 'MPV', 'SUV'] as const;
+
 export default function KatalogPage() {
   const [filter, setFilter] = useState('Semua');
   const [cars, setCars] = useState<DisplayCar[]>([]);
@@ -40,7 +42,7 @@ export default function KatalogPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <div className="flex flex-col gap-2">
           <h1 className="text-slate-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">
-            Katalog Armada Kami
+            Katalog Mobil Kami
           </h1>
           <p className="text-slate-600 dark:text-slate-400 text-lg">
             Pilihan kendaraan terbaik untuk perjalanan Anda di Lampung
@@ -48,24 +50,15 @@ export default function KatalogPage() {
         </div>
         
         <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
-          <button 
-            onClick={() => setFilter('Semua')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'Semua' ? 'bg-white dark:bg-primary shadow-sm font-bold text-primary dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700'}`}
-          >
-            Semua
-          </button>
-          <button 
-            onClick={() => setFilter('MPV')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'MPV' ? 'bg-white dark:bg-primary shadow-sm font-bold text-primary dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700'}`}
-          >
-            MPV
-          </button>
-          <button 
-            onClick={() => setFilter('SUV')}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === 'SUV' ? 'bg-white dark:bg-primary shadow-sm font-bold text-primary dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700'}`}
-          >
-            SUV
-          </button>
+          {categoryFilters.map((categoryFilter) => (
+            <button
+              key={categoryFilter}
+              onClick={() => setFilter(categoryFilter)}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${filter === categoryFilter ? 'bg-white dark:bg-primary shadow-sm font-bold text-primary dark:text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-700'}`}
+            >
+              {categoryFilter}
+            </button>
+          ))}
         </div>
       </div>
 

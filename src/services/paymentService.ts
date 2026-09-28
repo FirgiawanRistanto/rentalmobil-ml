@@ -19,6 +19,7 @@ export const ALLOWED_PAYMENT_PROOF_MIME_TYPES = new Set([
 ]);
 
 export type PaymentStatus = 'SUBMITTED' | 'VERIFIED' | 'REJECTED' | 'EXPIRED';
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'EXPIRED';
 export type BookingPaymentMethod = typeof MANUAL_BANK_TRANSFER_METHOD;
 
 export type PaymentServiceErrorCode =
@@ -28,6 +29,7 @@ export type PaymentServiceErrorCode =
   | 'BOOKING_NOT_FOUND'
   | 'BOOKING_NOT_OWNED_BY_USER'
   | 'BOOKING_NOT_PAYABLE'
+  | 'BOOKING_CANNOT_BE_CANCELLED'
   | 'RESERVATION_EXPIRED'
   | 'PAYMENT_ALREADY_SUBMITTED'
   | 'BOOKING_PRICE_SNAPSHOT_NOT_FOUND'
@@ -80,7 +82,7 @@ export interface PaymentProofStorage {
 interface PaymentBookingForSubmission {
   id: string;
   userId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status: BookingStatus;
   reservationExpiresAt: Date | null;
   snapshotTotalInvoiceDisplay: number | null;
 }
@@ -104,7 +106,7 @@ interface PaymentForReview {
   status: PaymentStatus;
   amount: number;
   reviewExpiresAt: Date;
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  bookingStatus: BookingStatus;
   bookingReservationExpiresAt: Date | null;
   snapshotTotalInvoiceDisplay: number | null;
 }
@@ -112,7 +114,7 @@ interface PaymentForReview {
 interface BookingPaymentSummaryRow {
   id: string;
   userId: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  status: BookingStatus;
   reservationExpiresAt: Date | null;
   carId: string;
   carBrand: string;
@@ -146,7 +148,7 @@ interface AdminPaymentListRow {
   rejectionReason: string | null;
   proofStorageKey: string;
   bookingId: string;
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  bookingStatus: BookingStatus;
   reservationExpiresAt: Date | null;
   startDate: Date;
   endDate: Date;
@@ -183,8 +185,10 @@ export interface PaymentTransactionRepository {
   findPaymentByBookingId(bookingId: string): Promise<ExistingPaymentForBooking | null>;
   insertPayment(input: InsertPaymentInput): Promise<{ id: string; status: 'SUBMITTED' }>;
   extendBookingReservation(bookingId: string, reservationExpiresAt: Date, updatedAt: Date): Promise<void>;
+  expireBooking(bookingId: string, expiredAt: Date): Promise<void>;
+  cancelBooking(bookingId: string, cancelledAt: Date): Promise<void>;
   lockPaymentForReview(paymentId: string): Promise<PaymentForReview | null>;
-  markPaymentExpiredAndCancelBooking(paymentId: string, bookingId: string, reviewedAt: Date): Promise<void>;
+  markPaymentExpiredAndExpireBooking(paymentId: string, bookingId: string, reviewedAt: Date): Promise<void>;
   verifyPayment(paymentId: string, bookingId: string, adminUserId: string, reviewedAt: Date): Promise<void>;
   rejectPayment(paymentId: string, bookingId: string, adminUserId: string, reason: string, reviewedAt: Date): Promise<void>;
 }
@@ -216,6 +220,12 @@ export interface SubmitPaymentProofResult {
   nextStep: 'WAITING_ADMIN_VERIFICATION';
 }
 
+export interface CancelBookingReservationResult {
+  bookingId: string;
+  bookingStatus: 'CANCELLED';
+  cancelledAt: string;
+}
+
 export interface ReviewPaymentResult {
   paymentId: string;
   paymentStatus: 'VERIFIED' | 'REJECTED';
@@ -227,7 +237,7 @@ export interface ReviewPaymentResult {
 
 export interface ReadBookingPaymentResult {
   bookingId: string;
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  bookingStatus: BookingStatus;
   reservationExpiresAt: string | null;
   car: {
     id: string;
@@ -262,7 +272,7 @@ export interface AdminPaymentQueueItem {
   paymentStatus: PaymentStatus;
   paymentMethod: BookingPaymentMethod;
   bookingId: string;
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+  bookingStatus: BookingStatus;
   amount: number;
   submittedAt: string;
   reviewExpiresAt: string;
@@ -327,6 +337,7 @@ interface ReviewPaymentDependencies {
 
 interface ReadBookingPaymentDependencies {
   repository?: PaymentRepository;
+  now?: () => Date;
 }
 
 interface AdminPaymentReadDependencies {
@@ -404,7 +415,7 @@ function calculateRentalDurationDays(startDate: Date, endDate: Date): number {
 
 function isPaymentReviewable(
   paymentStatus: PaymentStatus,
-  bookingStatus: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED',
+  bookingStatus: BookingStatus,
   reviewExpiresAt: Date,
   reservationExpiresAt: Date | null,
   now: Date,
@@ -519,6 +530,21 @@ function fileExtensionForMimeType(mimeType: string): string {
   }
 }
 
+function normalizePaymentProofStorageKey(storageKey: string): string {
+  const trimmed = storageKey.trim();
+  if (!trimmed) {
+    throw new PaymentServiceError('PAYMENT_PROOF_NOT_FOUND', 'Bukti pembayaran tidak ditemukan.');
+  }
+
+  const normalized = trimmed.replace(/\\/g, '/');
+  const baseName = path.posix.basename(normalized);
+  if (!baseName || baseName === '.' || baseName === '..' || baseName.includes('/') || baseName.includes('\\')) {
+    throw new PaymentServiceError('PAYMENT_PROOF_NOT_FOUND', 'Bukti pembayaran tidak ditemukan.');
+  }
+
+  return baseName;
+}
+
 export const localPaymentProofStorage: PaymentProofStorage = {
   async save(file) {
     const validFile = validatePaymentProofFile(file);
@@ -542,24 +568,25 @@ export const localPaymentProofStorage: PaymentProofStorage = {
   },
 
   async delete(storageKey) {
-    if (!storageKey || storageKey.includes('/') || storageKey.includes('\\')) {
+    let safeKey = '';
+    try {
+      safeKey = normalizePaymentProofStorageKey(storageKey);
+    } catch {
       return;
     }
 
     try {
-      await unlink(path.join(PAYMENT_PROOF_STORAGE_DIR, storageKey));
+      await unlink(path.join(PAYMENT_PROOF_STORAGE_DIR, safeKey));
     } catch {
       // Best-effort cleanup; callers should not expose local paths or fail user flows on cleanup miss.
     }
   },
 
   async read(storageKey) {
-    if (!storageKey || storageKey.includes('/') || storageKey.includes('\\')) {
-      throw new PaymentServiceError('PAYMENT_PROOF_NOT_FOUND', 'Bukti pembayaran tidak ditemukan.');
-    }
+    const safeKey = normalizePaymentProofStorageKey(storageKey);
 
     try {
-      return await readFile(path.join(PAYMENT_PROOF_STORAGE_DIR, storageKey));
+      return await readFile(path.join(PAYMENT_PROOF_STORAGE_DIR, safeKey));
     } catch {
       throw new PaymentServiceError('PAYMENT_PROOF_NOT_FOUND', 'Bukti pembayaran tidak ditemukan.');
     }
@@ -657,6 +684,20 @@ export function createDrizzlePaymentRepository(): PaymentRepository {
               .where(sql`${bookings.id} = ${bookingId}`);
           },
 
+          async expireBooking(bookingId, expiredAt) {
+            await tx
+              .update(bookings)
+              .set({ status: 'EXPIRED', updatedAt: expiredAt })
+              .where(sql`${bookings.id} = ${bookingId} and ${bookings.status} = 'PENDING'`);
+          },
+
+          async cancelBooking(bookingId, cancelledAt) {
+            await tx
+              .update(bookings)
+              .set({ status: 'CANCELLED', updatedAt: cancelledAt })
+              .where(sql`${bookings.id} = ${bookingId} and ${bookings.status} = 'PENDING'`);
+          },
+
           async lockPaymentForReview(paymentId) {
             const result = await tx.execute(sql`
               select
@@ -685,14 +726,14 @@ export function createDrizzlePaymentRepository(): PaymentRepository {
               : null;
           },
 
-          async markPaymentExpiredAndCancelBooking(paymentId, bookingId, reviewedAt) {
+          async markPaymentExpiredAndExpireBooking(paymentId, bookingId, reviewedAt) {
             await tx
               .update(bookingPayments)
               .set({ status: 'EXPIRED', reviewedAt, updatedAt: reviewedAt })
               .where(sql`${bookingPayments.id} = ${paymentId}`);
             await tx
               .update(bookings)
-              .set({ status: 'CANCELLED', updatedAt: reviewedAt })
+              .set({ status: 'EXPIRED', updatedAt: reviewedAt })
               .where(sql`${bookings.id} = ${bookingId}`);
           },
 
@@ -798,9 +839,24 @@ export function createDrizzlePaymentRepository(): PaymentRepository {
             returning p."bookingId" as "bookingId"
           )
           update bookings b
-          set status = 'CANCELLED', "updatedAt" = ${now}
+          set status = 'EXPIRED', "updatedAt" = ${now}
           where b.id in (select "bookingId" from expired_payments)
             and b.status = 'PENDING'
+        `);
+
+        await tx.execute(sql`
+          update bookings b
+          set status = 'EXPIRED', "updatedAt" = ${now}
+          where b.status = 'PENDING'
+            and b."reservationExpiresAt" is not null
+            and b."reservationExpiresAt" <= ${now}
+            and not exists (
+              select 1
+              from booking_payments p
+              where p."bookingId" = b.id
+                and p.status = 'SUBMITTED'
+                and p."reviewExpiresAt" > ${now}
+            )
         `);
       });
     },
@@ -959,6 +1015,7 @@ export async function submitPaymentProof(
       }
 
       if (!booking.reservationExpiresAt || booking.reservationExpiresAt.getTime() <= submittedAt.getTime()) {
+        await tx.expireBooking(booking.id, submittedAt);
         throw new PaymentServiceError('RESERVATION_EXPIRED', 'Masa reservasi booking sudah berakhir.');
       }
 
@@ -1008,6 +1065,52 @@ export async function submitPaymentProof(
   }
 }
 
+export async function cancelBookingReservation(
+  bookingIdRaw: string,
+  user: AuthenticatedPaymentUser | null | undefined,
+  dependencies: SubmitPaymentDependencies = {},
+): Promise<CancelBookingReservationResult> {
+  const authenticated = assertAuthenticatedUser(user);
+  const bookingId = assertUuid(bookingIdRaw, 'bookingId');
+  const repository = dependencies.repository ?? drizzlePaymentRepository;
+  const now = dependencies.now ?? (() => new Date());
+  const cancelledAt = now();
+
+  return repository.transaction(async (tx) => {
+    const booking = await tx.lockBookingForPayment(bookingId);
+
+    if (!booking) {
+      throw new PaymentServiceError('BOOKING_NOT_FOUND', 'Booking tidak ditemukan.');
+    }
+
+    if (booking.userId !== authenticated.id) {
+      throw new PaymentServiceError('BOOKING_NOT_OWNED_BY_USER', 'Booking bukan milik user ini.');
+    }
+
+    if (booking.status !== 'PENDING') {
+      throw new PaymentServiceError('BOOKING_CANNOT_BE_CANCELLED', 'Booking tidak dapat dibatalkan pada status saat ini.');
+    }
+
+    if (!booking.reservationExpiresAt || booking.reservationExpiresAt.getTime() <= cancelledAt.getTime()) {
+      await tx.expireBooking(booking.id, cancelledAt);
+      throw new PaymentServiceError('RESERVATION_EXPIRED', 'Masa reservasi booking sudah berakhir.');
+    }
+
+    const existingPayment = await tx.findPaymentByBookingId(booking.id);
+    if (existingPayment) {
+      throw new PaymentServiceError('BOOKING_CANNOT_BE_CANCELLED', 'Reservasi dengan bukti pembayaran tidak dapat dibatalkan dari customer.');
+    }
+
+    await tx.cancelBooking(booking.id, cancelledAt);
+
+    return {
+      bookingId: booking.id,
+      bookingStatus: 'CANCELLED',
+      cancelledAt: cancelledAt.toISOString(),
+    };
+  });
+}
+
 function assertPaymentCanBeReviewed(payment: PaymentForReview, now: Date): void {
   if (payment.status !== 'SUBMITTED') {
     throw new PaymentServiceError('PAYMENT_NOT_REVIEWABLE', 'Payment tidak berada pada status SUBMITTED.');
@@ -1039,7 +1142,7 @@ async function handleReviewExpired(
   payment: PaymentForReview,
   now: Date,
 ): Promise<never> {
-  await tx.markPaymentExpiredAndCancelBooking(payment.id, payment.bookingId, now);
+  await tx.markPaymentExpiredAndExpireBooking(payment.id, payment.bookingId, now);
   throw new PaymentServiceError('PAYMENT_REVIEW_EXPIRED', 'Masa review pembayaran sudah berakhir.');
 }
 
@@ -1145,6 +1248,11 @@ export async function readBookingPayment(
   const authenticated = assertAuthenticatedUser(user);
   const bookingId = assertUuid(bookingIdRaw, 'bookingId');
   const repository = dependencies.repository ?? drizzlePaymentRepository;
+  const now = dependencies.now ?? (() => new Date());
+  const referenceTime = now();
+
+  await repository.expireSubmittedPayments(referenceTime);
+
   const booking = await repository.findBookingPaymentSummary(bookingId);
 
   if (!booking) {

@@ -61,8 +61,8 @@ describe('booking payment database integrity', { skip: !pool }, () => {
         [userId, `payment-${Date.now()}@example.test`],
       );
       await client.query(
-        `insert into cars (id, brand, model, category, year, "basePricePerDay", "isAvailable", "createdAt", "updatedAt")
-         values ($1, 'Toyota', 'Fortuner', 'SUV', 2024, 1500000, true, now(), now())`,
+        `insert into cars (id, slug, brand, model, category, year, "basePricePerDay", "isAvailable", "createdAt", "updatedAt")
+         values ($1::uuid, concat('payment-integrity-', $1::uuid::text), 'Toyota', 'Fortuner', 'SUV', 2024, 1500000, true, now(), now())`,
         [carId],
       );
       await client.query(
@@ -113,7 +113,7 @@ describe('booking payment database integrity', { skip: !pool }, () => {
     }
   });
 
-  it('expires stale submitted payments, cancels pending bookings, keeps snapshot values, and frees availability', async () => {
+  it('expires stale submitted payments, expires pending bookings, keeps snapshot values, and frees availability', async () => {
     assert.ok(pool);
 
     const client = await pool.connect();
@@ -131,8 +131,8 @@ describe('booking payment database integrity', { skip: !pool }, () => {
         [userId, `payment-expiry-${Date.now()}@example.test`],
       );
       await client.query(
-        `insert into cars (id, brand, model, category, year, "basePricePerDay", "isAvailable", "createdAt", "updatedAt")
-         values ($1, 'Toyota', 'Fortuner Expiry', 'SUV', 2024, 1500000, true, now(), now())`,
+        `insert into cars (id, slug, brand, model, category, year, "basePricePerDay", "isAvailable", "createdAt", "updatedAt")
+         values ($1::uuid, concat('payment-expiry-', $1::uuid::text), 'Toyota', 'Fortuner Expiry', 'SUV', 2024, 1500000, true, now(), now())`,
         [carId],
       );
       await client.query(
@@ -200,7 +200,7 @@ describe('booking payment database integrity', { skip: !pool }, () => {
       });
 
       assert.equal(status.rows[0].payment_status, 'EXPIRED');
-      assert.equal(status.rows[0].booking_status, 'CANCELLED');
+      assert.equal(status.rows[0].booking_status, 'EXPIRED');
       assert.equal(status.rows[0].totalInvoiceDisplay, 4623000);
       assert.equal(context.isSelectedCarAvailable, true);
       assert.equal(context.selectedCarAvailableUnits, 1);

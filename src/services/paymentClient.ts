@@ -1,9 +1,11 @@
 import {
   PaymentUiError,
+  buildBookingCancelEndpoint,
   buildBookingPaymentReadEndpoint,
   buildPaymentProofEndpoint,
   getPaymentErrorMessage,
   validatePaymentProofFile,
+  type BookingCancelResponse,
   type BookingPaymentReadResponse,
   type PaymentProofSubmitResponse,
 } from '../lib/paymentUi';
@@ -86,6 +88,15 @@ function isPaymentProofSubmitResponse(value: unknown): value is PaymentProofSubm
   );
 }
 
+function isBookingCancelResponse(value: unknown): value is BookingCancelResponse {
+  return (
+    isRecord(value) &&
+    typeof value.bookingId === 'string' &&
+    value.bookingStatus === 'CANCELLED' &&
+    typeof value.cancelledAt === 'string'
+  );
+}
+
 async function readErrorCode(response: Response, fallbackCode: string): Promise<string> {
   try {
     const body = (await response.json()) as ApiErrorBody;
@@ -144,4 +155,27 @@ export async function uploadPaymentProofClient(
   }
 
   return payment;
+}
+
+export async function cancelBookingReservationClient(
+  bookingId: string,
+  options: PaymentClientOptions = {},
+): Promise<BookingCancelResponse> {
+  const fetchFn = options.fetchFn ?? fetch;
+  const response = await fetchFn(buildBookingCancelEndpoint(bookingId), {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    const code = await readErrorCode(response, 'BOOKING_CANCEL_FAILED');
+    throw new PaymentUiError(code, getPaymentErrorMessage(code));
+  }
+
+  const body = await response.json();
+  if (!isBookingCancelResponse(body)) {
+    throw new PaymentUiError('BOOKING_CANCEL_RESPONSE_INVALID', 'Reservasi belum berhasil dibatalkan.');
+  }
+
+  return body;
 }

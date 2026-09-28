@@ -104,12 +104,16 @@ export function getAdminBookingStatusLabel(
     return 'Dikonfirmasi';
   }
 
+  if (bookingStatus === 'EXPIRED' || paymentStatus === 'EXPIRED') {
+    return 'Kedaluwarsa';
+  }
+
   if (bookingStatus === 'CANCELLED' && paymentStatus === 'REJECTED') {
     return 'Ditolak';
   }
 
-  if (bookingStatus === 'CANCELLED' || paymentStatus === 'EXPIRED') {
-    return 'Kedaluwarsa';
+  if (bookingStatus === 'CANCELLED') {
+    return 'Dibatalkan';
   }
 
   if (bookingStatus === 'COMPLETED') {
@@ -135,7 +139,12 @@ export function getAdminStatusBadgeClass(
     return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/60';
   }
 
-  if (bookingStatus === 'CANCELLED' || paymentStatus === 'REJECTED' || paymentStatus === 'EXPIRED') {
+  if (
+    bookingStatus === 'CANCELLED' ||
+    bookingStatus === 'EXPIRED' ||
+    paymentStatus === 'REJECTED' ||
+    paymentStatus === 'EXPIRED'
+  ) {
     return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/60';
   }
 

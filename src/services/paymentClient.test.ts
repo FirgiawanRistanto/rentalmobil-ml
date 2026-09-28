@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  buildBookingCancelEndpoint,
   buildBookingPaymentReadEndpoint,
   buildPaymentProofEndpoint,
 } from '../lib/paymentUi';
-import { readBookingPaymentClient, uploadPaymentProofClient } from './paymentClient';
+import { cancelBookingReservationClient, readBookingPaymentClient, uploadPaymentProofClient } from './paymentClient';
 
 const bookingId = '11111111-1111-4111-8111-111111111111';
 
@@ -119,5 +120,23 @@ describe('payment browser client', () => {
         ),
       /Batas waktu reservasi telah berakhir/,
     );
+  });
+
+  it('cancels unpaid reservations through the v4 booking cancel endpoint', async () => {
+    let requestedUrl = '';
+    const result = await cancelBookingReservationClient(bookingId, {
+      fetchFn: async (input, init) => {
+        requestedUrl = String(input);
+        assert.equal(init?.method, 'POST');
+        return jsonResponse({
+          bookingId,
+          bookingStatus: 'CANCELLED',
+          cancelledAt: '2026-06-10T10:00:00.000Z',
+        });
+      },
+    });
+
+    assert.equal(requestedUrl, buildBookingCancelEndpoint(bookingId));
+    assert.equal(result.bookingStatus, 'CANCELLED');
   });
 });

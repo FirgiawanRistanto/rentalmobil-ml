@@ -4,54 +4,52 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const menuItems = [
-  { href: '/admin', label: 'Overview', icon: '📊' },
-  { href: '/admin/transactions', label: 'Transaksi', icon: '💳' },
-  { href: '/admin/fleet', label: 'Armada', icon: '🚗' },
-  { href: '/admin/drivers', label: 'Supir', icon: '👤' },
+  { href: '/admin', label: 'Dashboard', icon: 'dashboard' },
+  { href: '/admin/transaksi', label: 'Transaksi', icon: 'receipt_long' },
+  { href: '/admin/mobil', label: 'Mobil', icon: 'directions_car' },
+  { href: '/admin/laporan', label: 'Laporan', icon: 'analytics' },
+  { href: '/admin/machine-learning', label: 'Machine Learning', icon: 'modeling' },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-surface-darker border-r border-white/5 p-6 flex flex-col">
-      {/* Header */}
+    <aside className="flex min-h-screen w-64 flex-col border-r border-white/5 bg-surface-darker p-6">
       <div className="mb-8">
         <h2 className="font-heading text-lg font-800 text-brand-gold">BESAN ADMIN</h2>
-        <p className="text-xs text-text-muted mt-1">Control Center</p>
+        <p className="mt-1 text-xs text-text-muted">Control Center</p>
       </div>
 
-      {/* Menu Items */}
       <nav className="flex-1 space-y-1">
         {menuItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  : 'text-text-secondary hover:bg-white/5 hover:text-text-primary'
               }`}
+              href={item.href}
             >
-              <span className="text-lg">{item.icon}</span>
+              <span className="material-symbols-outlined text-lg">{item.icon}</span>
               <span>{item.label}</span>
               {isActive && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-gold" />
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-brand-gold" />
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="mt-auto pt-6 border-t border-white/5">
+      <div className="mt-auto border-t border-white/5 pt-6">
         <Link
+          className="flex items-center gap-2 px-4 py-2 text-sm text-text-muted transition-colors hover:text-text-secondary"
           href="/"
-          className="flex items-center gap-2 px-4 py-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
         >
-          <span>←</span>
+          <span className="material-symbols-outlined text-sm">arrow_back</span>
           <span>Kembali ke Site</span>
         </Link>
       </div>

@@ -13,7 +13,7 @@ import {
   type PaymentStatus,
 } from './paymentService';
 
-type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'EXPIRED';
 type TripType = 'DALAM_KOTA' | 'LUAR_KOTA';
 
 export interface AdminDashboardUser {
@@ -168,7 +168,7 @@ function createDefaultRepository(): AdminDashboardRepository {
             select count(*)::int
             from bookings b
             left join booking_payments p on p."bookingId" = b.id
-            where b.status = 'CANCELLED' or p.status = 'EXPIRED'
+            where b.status in ('CANCELLED', 'EXPIRED') or p.status = 'EXPIRED'
           ) as "cancelledOrExpiredBookings",
           (
             select coalesce(sum(coalesce(bps."totalInvoiceDisplay", p.amount)), 0)::int

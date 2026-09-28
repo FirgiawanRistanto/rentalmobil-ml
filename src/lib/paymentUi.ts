@@ -22,10 +22,10 @@ export const SIMULATED_BANK_TRANSFER_INSTRUCTIONS = {
   bankName: 'Bank XYZ',
   accountNumber: '1234567890',
   accountHolder: 'Rental Mobil XYZ',
-  notice: 'Informasi rekening ini hanya untuk demonstrasi sistem dan bukan tujuan transfer nyata.',
+  notice: 'Informasi rekening ini hanya untuk demonstrasi sistem',
 };
 
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED';
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'EXPIRED';
 export type PaymentStatus = 'SUBMITTED' | 'VERIFIED' | 'REJECTED' | 'EXPIRED';
 export type PaymentMethod = 'BANK_TRANSFER_MANUAL';
 export type TripType = 'DALAM_KOTA' | 'LUAR_KOTA';
@@ -73,6 +73,12 @@ export interface PaymentProofSubmitResponse {
   bookingStatus: 'PENDING';
   reservationExpiresAt: string;
   nextStep: 'WAITING_ADMIN_VERIFICATION';
+}
+
+export interface BookingCancelResponse {
+  bookingId: string;
+  bookingStatus: 'CANCELLED';
+  cancelledAt: string;
 }
 
 export interface AdminPaymentQueueItem {
@@ -155,6 +161,10 @@ export function buildPaymentProofEndpoint(bookingId: string): string {
   return `/api/bookings/${encodeURIComponent(bookingId)}/payment-proof`;
 }
 
+export function buildBookingCancelEndpoint(bookingId: string): string {
+  return `/api/bookings/${encodeURIComponent(bookingId)}/cancel`;
+}
+
 export function buildAdminPaymentListEndpoint(status?: PaymentStatus | 'ALL'): string {
   return status && status !== 'ALL'
     ? `/api/admin/payments?status=${encodeURIComponent(status)}`
@@ -194,12 +204,24 @@ export function canUploadPaymentProof(
     !isPastIsoDateTime(booking.reservationExpiresAt, referenceDate);
 }
 
+export function canCancelBookingReservation(
+  booking: Pick<BookingPaymentReadResponse, 'bookingStatus' | 'reservationExpiresAt' | 'payment'>,
+  referenceDate = new Date(),
+): boolean {
+  return booking.bookingStatus === 'PENDING' &&
+    !booking.payment &&
+    !isPastIsoDateTime(booking.reservationExpiresAt, referenceDate);
+}
+
 export function getEffectivePaymentStatus(
   booking: Pick<BookingPaymentReadResponse, 'payment' | 'reservationExpiresAt' | 'bookingStatus'>,
   referenceDate = new Date(),
 ): PaymentStatus | 'NONE' | 'RESERVATION_EXPIRED' {
   if (!booking.payment) {
-    return booking.bookingStatus === 'PENDING' && isPastIsoDateTime(booking.reservationExpiresAt, referenceDate)
+    return (
+      booking.bookingStatus === 'EXPIRED' ||
+      (booking.bookingStatus === 'PENDING' && isPastIsoDateTime(booking.reservationExpiresAt, referenceDate))
+    )
       ? 'RESERVATION_EXPIRED'
       : 'NONE';
   }
@@ -240,6 +262,8 @@ export function getPaymentErrorMessage(code: string): string {
       return 'Anda tidak dapat mengakses booking ini.';
     case 'BOOKING_NOT_PAYABLE':
       return 'Booking ini tidak dapat menerima pembayaran.';
+    case 'BOOKING_CANNOT_BE_CANCELLED':
+      return 'Reservasi ini tidak dapat dibatalkan dari halaman customer.';
     case 'RESERVATION_EXPIRED':
       return 'Batas waktu reservasi telah berakhir. Silakan membuat booking baru.';
     case 'PAYMENT_ALREADY_SUBMITTED':
@@ -270,7 +294,7 @@ export function getAdminPaymentErrorMessage(code: string): string {
     case 'PAYMENT_NOT_REVIEWABLE':
       return 'Pembayaran tidak dapat diproses.';
     case 'PAYMENT_REVIEW_EXPIRED':
-      return 'Masa verifikasi telah berakhir. Booking dibatalkan.';
+      return 'Masa verifikasi telah berakhir. Booking kedaluwarsa.';
     case 'PAYMENT_AMOUNT_MISMATCH':
       return 'Nominal pembayaran tidak sesuai invoice.';
     case 'PAYMENT_VERIFICATION_FAILED':
@@ -295,6 +319,8 @@ export function getBookingStatusLabel(status: BookingStatus): string {
       return 'Dibatalkan';
     case 'COMPLETED':
       return 'Selesai';
+    case 'EXPIRED':
+      return 'Kedaluwarsa';
   }
 }
 

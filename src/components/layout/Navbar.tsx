@@ -38,12 +38,13 @@ export default function Navbar() {
           <div className="text-primary">
             <span className="material-symbols-outlined text-3xl font-bold">directions_car</span>
           </div>
-          <h2 className="text-primary text-xl font-black leading-tight tracking-tight uppercase">Besan Rental</h2>
+          <h2 className="text-primary text-xl font-black leading-tight tracking-tight uppercase">XYZ Rental</h2>
         </Link>
         <div className="flex flex-1 justify-end items-center gap-8">
           <nav className="hidden md:flex items-center gap-8">
+            <Link className="text-slate-700 dark:text-slate-200 text-sm font-semibold hover:text-primary transition-colors" href="/">Beranda</Link>
             <Link className="text-slate-700 dark:text-slate-200 text-sm font-semibold hover:text-primary transition-colors" href="/katalog">Katalog</Link>
-            <Link className="text-slate-700 dark:text-slate-200 text-sm font-semibold hover:text-primary transition-colors" href="/#about">Tentang Kami</Link>
+            <Link className="text-slate-700 dark:text-slate-200 text-sm font-semibold hover:text-primary transition-colors" href="/tentang-kami">Tentang Kami</Link>
           </nav>
           {user ? (
             <div className="flex items-center gap-3">

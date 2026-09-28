@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { GET as carsGet, POST as carsPost } from './route';
 
 /**
@@ -48,6 +48,12 @@ describe('POST /api/cars security hardening', () => {
     // GET returns 200 or 500 (if DB unavailable in unit context); must NOT be 405.
     // We only verify the handler is not undefined and does not throw synchronously.
     assert.equal(typeof carsGet, 'function', 'GET handler must still be exported');
+  });
+
+  it('verifies source code: katalog GET only returns active cars', () => {
+    const source = readFileSync('src/services/carService.ts', 'utf8');
+
+    assert.match(source, /where\(eq\(cars\.isAvailable,\s*true\)\)/);
   });
 
   it('verifies source code: no reference to legacy pricingService or bookingService', () => {

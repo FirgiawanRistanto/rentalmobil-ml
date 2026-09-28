@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import {
   SIMULATED_BANK_TRANSFER_INSTRUCTIONS,
+  canCancelBookingReservation,
   canUploadPaymentProof,
   formatDateId,
   formatDateTimeId,
@@ -17,8 +19,9 @@ import {
   PaymentUiError,
   type BookingPaymentReadResponse,
 } from '@/lib/paymentUi';
+import { getCarCategoryDisplayLabel } from '@/lib/carCategoryUi';
 import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
-import { readBookingPaymentClient, uploadPaymentProofClient } from '@/services/paymentClient';
+import { cancelBookingReservationClient, readBookingPaymentClient, uploadPaymentProofClient } from '@/services/paymentClient';
 
 interface CustomerPaymentClientProps {
   bookingId: string;
@@ -61,6 +64,7 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function loadBooking() {
@@ -184,6 +188,41 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
     }
   }
 
+  async function handleCancelReservation() {
+    if (!booking || isCancelling || !canCancelBookingReservation(booking)) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Batalkan reservasi?',
+      text: 'Unit akan dilepas dan booking ini tidak bisa dilanjutkan ke upload pembayaran.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Batalkan Reservasi',
+      cancelButtonText: 'Kembali',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsCancelling(true);
+    setErrorMessage(null);
+    try {
+      await cancelBookingReservationClient(booking.bookingId);
+      await loadBooking();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof PaymentUiError
+          ? error.message
+          : 'Reservasi belum berhasil dibatalkan.',
+      );
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-1 flex-col px-4 py-8 md:px-8">
@@ -210,6 +249,7 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
 
   const effectiveStatus = getEffectivePaymentStatus(booking);
   const uploadAllowed = canUploadPaymentProof(booking);
+  const cancelAllowed = canCancelBookingReservation(booking);
   const amount = booking.payment?.amount ?? booking.pricing.totalInvoiceDisplay;
 
   return (
@@ -251,7 +291,7 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
             <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Kendaraan</p>
               <SummaryRow label="Mobil" value={booking.car.name} />
-              <SummaryRow label="Kategori" value={booking.car.category} />
+              <SummaryRow label="Kategori" value={getCarCategoryDisplayLabel(booking.car.category)} />
               <SummaryRow label="Model" value={booking.pricing.modelVersion ? formatPricingModelLabel(booking.pricing.modelVersion) : '-'} />
             </div>
             <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
@@ -387,6 +427,17 @@ export default function CustomerPaymentClient({ bookingId }: CustomerPaymentClie
               <span className="material-symbols-outlined text-lg">upload_file</span>
               {isUploading ? 'Mengirim Bukti...' : 'Kirim Bukti Pembayaran'}
             </button>
+            {cancelAllowed ? (
+              <button
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-5 py-3 text-sm font-black text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+                disabled={isCancelling || isUploading}
+                onClick={handleCancelReservation}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-lg">event_busy</span>
+                {isCancelling ? 'Membatalkan...' : 'Batalkan Reservasi'}
+              </button>
+            ) : null}
           </form>
         ) : (
           <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">

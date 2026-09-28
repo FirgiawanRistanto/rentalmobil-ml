@@ -1,13 +1,5 @@
-import AdminPaymentDetailClient from '@/components/admin/AdminPaymentDetailClient';
+import { redirect } from 'next/navigation';
 
-interface AdminPaymentDetailPageProps {
-  params: Promise<{
-    paymentId: string;
-  }>;
-}
-
-export default async function AdminPaymentDetailPage({ params }: AdminPaymentDetailPageProps) {
-  const { paymentId } = await params;
-
-  return <AdminPaymentDetailClient paymentId={paymentId} />;
+export default function AdminPaymentDetailCompatibilityPage() {
+  redirect('/admin/transaksi');
 }

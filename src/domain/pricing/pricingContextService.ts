@@ -165,7 +165,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
         basePricePerDay: cars.basePricePerDay,
       })
       .from(cars)
-      .where(eq(cars.id, carId))
+      .where(and(eq(cars.id, carId), eq(cars.isAvailable, true)))
       .limit(1);
 
     return car ?? null;
@@ -176,7 +176,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .select({ count: sql<number>`count(*)::int` })
       .from(carUnits)
       .innerJoin(cars, eq(carUnits.carId, cars.id))
-      .where(and(eq(cars.category, category), eq(carUnits.status, 'ACTIVE')));
+      .where(and(eq(cars.category, category), eq(cars.isAvailable, true), eq(carUnits.status, 'ACTIVE')));
 
     return Number(row?.count ?? 0);
   },
@@ -198,6 +198,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .innerJoin(carUnits, eq(bookings.carUnitId, carUnits.id))
       .where(and(
         eq(cars.category, category),
+        eq(cars.isAvailable, true),
         eq(carUnits.status, 'ACTIVE'),
         buildOverlapFilter(pickupDate, returnDate, statuses, referenceDate),
       ));
@@ -226,6 +227,7 @@ export const drizzlePricingContextRepository: PricingContextRepository = {
       .innerJoin(cars, eq(bookings.carId, cars.id))
       .where(and(
         eq(cars.category, category),
+        eq(cars.isAvailable, true),
         isNull(bookings.carUnitId),
         buildOverlapFilter(pickupDate, returnDate, statuses, referenceDate),
       ));

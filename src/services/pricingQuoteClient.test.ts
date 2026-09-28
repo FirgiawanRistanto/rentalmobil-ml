@@ -6,15 +6,15 @@ import { LEGACY_PRICING_ESTIMATE_ENDPOINT, PRICING_QUOTE_ENDPOINT } from '../lib
 const quoteResponse = {
   quoteId: 'quote-1',
   quoteStatus: 'ACTIVE',
-  expiresAt: '2026-06-10T10:15:00.000Z',
+  expiresAt: '2026-09-10T10:15:00.000Z',
   car: {
     id: 'car-1',
     category: 'SUV',
     basePricePerDay: 1500000,
   },
   rental: {
-    pickupDate: '2026-06-15',
-    returnDate: '2026-06-18',
+    pickupDate: '2026-09-15',
+    returnDate: '2026-09-18',
     durationDays: 3,
     tripType: 'LUAR_KOTA',
   },
@@ -57,7 +57,7 @@ describe('pricing quote browser client', () => {
     const quote = await requestPricingQuote(
       {
         carId: 'car-1',
-        pickupDate: '2026-06-15',
+        pickupDate: '2026-09-15',
         durationDays: 3,
         tripType: 'LUAR_KOTA',
       },
@@ -74,7 +74,7 @@ describe('pricing quote browser client', () => {
     assert.notEqual(requestedUrl, LEGACY_PRICING_ESTIMATE_ENDPOINT);
     assert.deepEqual(requestedBody, {
       carId: 'car-1',
-      pickupDate: '2026-06-15',
+      pickupDate: '2026-09-15',
       durationDays: 3,
       tripType: 'LUAR_KOTA',
     });
@@ -88,7 +88,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-06-15',
+            pickupDate: '2026-09-15',
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },
@@ -113,7 +113,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-06-15',
+            pickupDate: '2026-09-15',
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },
@@ -140,7 +140,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-06-15',
+            pickupDate: '2026-09-15',
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },

@@ -4,8 +4,10 @@ import { describe, it } from 'node:test';
 import {
   MAX_PAYMENT_PROOF_SIZE_BYTES,
   SIMULATED_BANK_TRANSFER_INSTRUCTIONS,
+  buildBookingCancelEndpoint,
   buildAdminPaymentDetailPath,
   buildBookingPaymentPath,
+  canCancelBookingReservation,
   canUploadPaymentProof,
   getAdminPaymentErrorMessage,
   getEffectivePaymentStatus,
@@ -45,6 +47,7 @@ function booking(overrides: Partial<BookingPaymentReadResponse> = {}): BookingPa
 describe('manual payment UI helpers', () => {
   it('builds v4 payment routes and keeps the legacy payment demo out of the booking handoff', () => {
     assert.equal(buildBookingPaymentPath(bookingId), `/booking/payment/${bookingId}`);
+    assert.equal(buildBookingCancelEndpoint(bookingId), `/api/bookings/${bookingId}/cancel`);
     assert.equal(buildAdminPaymentDetailPath('payment-1'), '/admin/payments/payment-1');
     assert.notEqual(buildBookingPaymentPath(bookingId).startsWith('/payment/'), true);
 
@@ -84,10 +87,16 @@ describe('manual payment UI helpers', () => {
   it('derives customer payment states without mutating booking data from timers', () => {
     const reference = new Date('2026-06-10T10:00:00.000Z');
     assert.equal(canUploadPaymentProof(booking(), reference), true);
+    assert.equal(canCancelBookingReservation(booking(), reference), true);
     assert.equal(
       canUploadPaymentProof(booking({ reservationExpiresAt: '2026-06-10T09:59:00.000Z' }), reference),
       false,
     );
+    assert.equal(
+      canCancelBookingReservation(booking({ reservationExpiresAt: '2026-06-10T09:59:00.000Z' }), reference),
+      false,
+    );
+    assert.equal(getEffectivePaymentStatus(booking({ bookingStatus: 'EXPIRED' }), reference), 'RESERVATION_EXPIRED');
     assert.equal(
       getEffectivePaymentStatus(
         booking({
@@ -115,7 +124,7 @@ describe('manual payment UI helpers', () => {
     );
     assert.equal(
       getAdminPaymentErrorMessage('PAYMENT_REVIEW_EXPIRED'),
-      'Masa verifikasi telah berakhir. Booking dibatalkan.',
+      'Masa verifikasi telah berakhir. Booking kedaluwarsa.',
     );
   });
 });
