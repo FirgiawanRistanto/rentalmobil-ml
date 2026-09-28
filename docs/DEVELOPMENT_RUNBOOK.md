@@ -1,7 +1,7 @@
 # Development Runbook — Rental Mobil XYZ (Skripsi)
 
 > Versi dokumen: Fase 10C.1
-> Branch aktif: `refactor/dynamic-pricing-v4`
+> Branch aktif: `main` (Dynamic Pricing v4 ter-merge via PR #1)
 
 ---
 
