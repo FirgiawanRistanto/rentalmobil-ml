@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-06-10T14:27:54.619084+00:00",
+  "dataset": "datasets\\car_rental_xyz_dynamic_pricing_v4.csv",
+  "outputRoot": "artifacts\\ml_evaluation",
+  "note": "Precomputed evaluation artifacts for the admin Machine Learning page. The web app must not train models at request time.",
+  "splits": [
+    {
+      "split": "split_70_30",
+      "trainRatio": 0.7,
+      "testRatio": 0.3,
+      "paths": {
+        "trainDataset": "split_70_30/train_dataset.csv",
+        "testPredictions": "split_70_30/test_predictions.csv",
+        "evaluation": "split_70_30/evaluation.json"
+      },
+      "trainRows": 28752,
+      "testRows": 12336,
+      "mae": 0.02117458827766882,
+      "r2": 0.9762964005951851,
+      "maePctPoint": 2.1174588277668818,
+      "r2Percent": 97.62964005951851,
+      "maeDisplayPriceIdr": 12315.418287937744,
+      "sourceVehicleOverlap": 0
+    },
+    {
+      "split": "split_80_20",
+      "trainRatio": 0.8,
+      "testRatio": 0.2,
+      "paths": {
+        "trainDataset": "split_80_20/train_dataset.csv",
+        "testPredictions": "split_80_20/test_predictions.csv",
+        "evaluation": "split_80_20/evaluation.json"
+      },
+      "trainRows": 32868,
+      "testRows": 8220,
+      "mae": 0.021042936693271303,
+      "r2": 0.9764182991197321,
+      "maePctPoint": 2.1042936693271304,
+      "r2Percent": 97.6418299119732,
+      "maeDisplayPriceIdr": 12261.922141119221,
+      "sourceVehicleOverlap": 0
+    },
+    {
+      "split": "split_90_10",
+      "trainRatio": 0.9,
+      "testRatio": 0.1,
+      "paths": {
+        "trainDataset": "split_90_10/train_dataset.csv",
+        "testPredictions": "split_90_10/test_predictions.csv",
+        "evaluation": "split_90_10/evaluation.json"
+      },
+      "trainRows": 36972,
+      "testRows": 4116,
+      "mae": 0.02084632260179067,
+      "r2": 0.9767940030427024,
+      "maePctPoint": 2.0846322601790668,
+      "r2Percent": 97.67940030427023,
+      "maeDisplayPriceIdr": 12086.491739552965,
+      "sourceVehicleOverlap": 0
+    }
+  ]
+}

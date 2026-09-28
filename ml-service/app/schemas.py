@@ -44,3 +44,59 @@ class HealthResponse(BaseModel):
     feature_contract_version: str = FEATURE_CONTRACT_VERSION
     error: str | None = None
 
+
+class ModelParameters(BaseModel):
+    n_estimators: int
+    max_depth: int | None
+    max_features: str | int | None
+    min_samples_split: int
+    min_samples_leaf: int
+
+
+class ModelMetrics(BaseModel):
+    test_mae_percentage_points: float
+    test_rmse_percentage_points: float
+    test_r2: float
+
+
+class ModelInfoResponse(BaseModel):
+    model_name: str
+    model_version: str = MODEL_VERSION
+    target_name: str = TARGET_NAME
+    feature_contract_version: str = FEATURE_CONTRACT_VERSION
+    n_estimators: int
+    parameters: ModelParameters
+    raw_input_features: list[str]
+    preprocessed_features: list[str]
+    dataset_rows: int
+    train_rows: int
+    test_rows: int
+    metrics: ModelMetrics
+
+
+class TreeNode(BaseModel):
+    id: int
+    depth: int
+    is_leaf: bool
+    feature_index: int | None = None
+    feature: str | None = None
+    threshold: float | None = None
+    left: int | None = None
+    right: int | None = None
+    prediction: float | None = None
+
+
+class TreeStatistics(BaseModel):
+    tree_index: int
+    max_depth: int
+    node_count: int
+    leaf_count: int
+
+
+class TreeStructureResponse(BaseModel):
+    tree_index: int
+    tree_statistics: TreeStatistics
+    nodes: list[TreeNode]
+    feature_names: list[str]
+
+

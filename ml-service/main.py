@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Path, status
 
+import app._init_patches  # noqa: F401  - apply sklearn pickle support before model imports
 from app.constants import FEATURE_CONTRACT_VERSION, MODEL_VERSION, TARGET_NAME
 from app.model_loader import (
     DynamicPricingV4ModelService,
@@ -11,7 +12,13 @@ from app.model_loader import (
     default_model_service,
 )
 from app.pricing import build_price_response
-from app.schemas import HealthResponse, PredictPriceRequest, PredictPriceResponse
+from app.schemas import (
+    HealthResponse,
+    ModelInfoResponse,
+    PredictPriceRequest,
+    PredictPriceResponse,
+    TreeStructureResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,33 @@ def create_app(model_service: DynamicPricingV4ModelService = default_model_servi
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Prediction failed.",
+            ) from exc
+
+    @app.get("/v1/model/info", response_model=ModelInfoResponse)
+    def get_model_info() -> ModelInfoResponse:
+        try:
+            return model_service.get_model_info()
+        except ModelNotReadyError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Model artifact is not ready.",
+            ) from exc
+
+    @app.get("/v1/model/tree/{tree_index}", response_model=TreeStructureResponse)
+    def get_model_tree(
+        tree_index: int = Path(..., ge=0, description="Zero-based estimator index inside the Random Forest."),
+    ) -> TreeStructureResponse:
+        try:
+            return model_service.get_tree_structure(tree_index)
+        except ModelNotReadyError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Model artifact is not ready.",
+            ) from exc
+        except IndexError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
             ) from exc
 
     @app.post("/predict_price")
