@@ -3,18 +3,28 @@ import { describe, it } from 'node:test';
 import { requestPricingQuote } from './pricingQuoteClient';
 import { LEGACY_PRICING_ESTIMATE_ENDPOINT, PRICING_QUOTE_ENDPOINT } from '../lib/pricingQuoteUi';
 
+// Tanggal dinamis agar test tidak menjadi "time-bomb": pickup selalu 10 hari di
+// masa depan, sehingga validasi "tanggal mulai sewa tidak boleh lampau" tetap lolos.
+const daysFromNow = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+const pickupDate = daysFromNow(10);
+const returnDate = daysFromNow(13);
+
 const quoteResponse = {
   quoteId: 'quote-1',
   quoteStatus: 'ACTIVE',
-  expiresAt: '2026-09-10T10:15:00.000Z',
+  expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
   car: {
     id: 'car-1',
     category: 'SUV',
     basePricePerDay: 1500000,
   },
   rental: {
-    pickupDate: '2026-09-15',
-    returnDate: '2026-09-18',
+    pickupDate,
+    returnDate,
     durationDays: 3,
     tripType: 'LUAR_KOTA',
   },
@@ -57,7 +67,7 @@ describe('pricing quote browser client', () => {
     const quote = await requestPricingQuote(
       {
         carId: 'car-1',
-        pickupDate: '2026-09-15',
+        pickupDate,
         durationDays: 3,
         tripType: 'LUAR_KOTA',
       },
@@ -74,7 +84,7 @@ describe('pricing quote browser client', () => {
     assert.notEqual(requestedUrl, LEGACY_PRICING_ESTIMATE_ENDPOINT);
     assert.deepEqual(requestedBody, {
       carId: 'car-1',
-      pickupDate: '2026-09-15',
+      pickupDate,
       durationDays: 3,
       tripType: 'LUAR_KOTA',
     });
@@ -88,7 +98,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-09-15',
+            pickupDate,
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },
@@ -113,7 +123,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-09-15',
+            pickupDate,
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },
@@ -140,7 +150,7 @@ describe('pricing quote browser client', () => {
         requestPricingQuote(
           {
             carId: 'car-1',
-            pickupDate: '2026-09-15',
+            pickupDate,
             durationDays: 3,
             tripType: 'LUAR_KOTA',
           },
