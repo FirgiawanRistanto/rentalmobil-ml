@@ -52,6 +52,10 @@ ml-service/**/*.pyc
 ml-service/artifacts/**/*.pkl
 ml-service/artifacts/**/*.joblib
 
+# ML training dataset (~15 MB CSV, reproduced from the Kaggle source + simulation
+# pipeline rather than kept in Git history)
+ml-service/datasets/
+
 # Legacy local ML artifacts, if accidentally retained
 ml-service/rf_model.pkl
 ml-service/le_category.pkl
