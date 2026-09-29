@@ -10,6 +10,8 @@ import {
   updateAdminCar,
   createAdminCarUnit,
   updateAdminCarUnit,
+  deleteAdminCarUnit,
+  deactivateAdminCarUnit,
   type AdminCarListItem,
 } from './adminCarsService';
 
@@ -52,6 +54,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     await assert.rejects(
@@ -88,6 +91,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     const result = await listAdminCars(admin, repository);
@@ -118,6 +122,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     await createAdminCar({
@@ -176,6 +181,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     await updateAdminCar('car-1', {
@@ -209,6 +215,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     await createAdminCar({
@@ -240,6 +247,7 @@ describe('admin cars service', () => {
         return { id: 'unit-2', plateNumber: input.plateNumber, status: input.status };
       },
       async deactivateUnit() { return { id: 'unit-2', plateNumber: 'BE 2 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-2', plateNumber: 'BE 2 XYZ', status: 'INACTIVE' as const }; },
     };
 
     const inactiveCar = await deactivateAdminCar('car-1', admin, repository);
@@ -269,6 +277,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     const deleted = await deleteAdminCar('car-1', admin, repository);
@@ -296,6 +305,7 @@ describe('admin cars service', () => {
       async createUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async updateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'ACTIVE' as const }; },
       async deactivateUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() { return { id: 'unit-1', plateNumber: 'BE 1 XYZ', status: 'INACTIVE' as const }; },
     };
 
     await assert.rejects(
@@ -313,5 +323,69 @@ describe('admin cars service', () => {
     assert.match(source, /from booking_payments bp/);
     assert.match(source, /tx\.delete\(carUnits\)/);
     assert.match(source, /tx\.delete\(cars\)/);
+  });
+
+  it('hard deletes units without booking history and keeps deactivate available', async () => {
+    let deleteUnitCalled = false;
+    const repository = {
+      async listCars() { return []; },
+      async findCarById() { return car(); },
+      async findSlug() { return false; },
+      async createCar() { return car(); },
+      async updateCar() { return car(); },
+      async deactivateCar() { return car({ isAvailable: false }); },
+      async deleteCar() { return car(); },
+      async listUnits() { return []; },
+      async createUnit() { return { id: 'unit-3', plateNumber: 'BE 3 XYZ', status: 'ACTIVE' as const }; },
+      async updateUnit() { return { id: 'unit-3', plateNumber: 'BE 3 XYZ', status: 'ACTIVE' as const }; },
+      async deactivateUnit() { return { id: 'unit-3', plateNumber: 'BE 3 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() {
+        deleteUnitCalled = true;
+        return { id: 'unit-3', plateNumber: 'BE 3 XYZ', status: 'INACTIVE' as const };
+      },
+    };
+
+    const deactivated = await deactivateAdminCarUnit('car-1', 'unit-3', admin, repository);
+    const deleted = await deleteAdminCarUnit('car-1', 'unit-3', admin, repository);
+
+    assert.equal(deactivated.status, 'INACTIVE');
+    assert.equal(deleted.plateNumber, 'BE 3 XYZ');
+    assert.equal(deleteUnitCalled, true);
+  });
+
+  it('rejects unit hard delete when the unit has booking history', async () => {
+    const repository = {
+      async listCars() { return []; },
+      async findCarById() { return car(); },
+      async findSlug() { return false; },
+      async createCar() { return car(); },
+      async updateCar() { return car(); },
+      async deactivateCar() { return car({ isAvailable: false }); },
+      async deleteCar() { return car(); },
+      async listUnits() { return []; },
+      async createUnit() { return { id: 'unit-4', plateNumber: 'BE 4 XYZ', status: 'ACTIVE' as const }; },
+      async updateUnit() { return { id: 'unit-4', plateNumber: 'BE 4 XYZ', status: 'ACTIVE' as const }; },
+      async deactivateUnit() { return { id: 'unit-4', plateNumber: 'BE 4 XYZ', status: 'INACTIVE' as const }; },
+      async deleteUnit() {
+        throw new AdminCarsServiceError(
+          'CAR_UNIT_HAS_HISTORY',
+          'Unit sudah memiliki riwayat booking. Ubah status unit menjadi INACTIVE agar data historis tetap aman.',
+          409,
+        );
+      },
+    };
+
+    await assert.rejects(
+      () => deleteAdminCarUnit('car-1', 'unit-4', admin, repository),
+      (error) => error instanceof AdminCarsServiceError && error.code === 'CAR_UNIT_HAS_HISTORY',
+    );
+  });
+
+  it('guards unit hard delete with booking history check and row lock', () => {
+    const source = readFileSync('src/services/adminCarsService.ts', 'utf8');
+
+    assert.match(source, /select 1 from bookings b where b\."carUnitId" = \$\{unitId\}::uuid/);
+    assert.match(source, /CAR_UNIT_HAS_HISTORY/);
+    assert.match(source, /\.for\('update'\)/);
   });
 });

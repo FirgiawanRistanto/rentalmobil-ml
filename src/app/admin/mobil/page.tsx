@@ -238,6 +238,41 @@ export default function AdminMobilPage() {
     await loadCars();
   }
 
+  // Tombol hapus unit disembunyikan agar konsisten dengan tampilan yang sudah
+  // dicetak di naskah skripsi. API DELETE unit tetap aktif; ubah ke true untuk
+  // menampilkan tombolnya kembali.
+  const showUnitDeleteButton = false;
+
+  async function deleteUnit(car: AdminCarListItem, unitId: string) {
+    const result = await Swal.fire({
+      title: 'Hapus unit permanen?',
+      text: 'Unit akan dihapus permanen jika belum memiliki riwayat booking. Jika sudah, ubah status unit menjadi INACTIVE.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Hapus',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!result.isConfirmed) return;
+    setError('');
+    setUnitErrorByCarId((current) => ({ ...current, [car.id]: '' }));
+    setUnitMessageByCarId((current) => ({ ...current, [car.id]: '' }));
+    const response = await fetch(`/api/admin/cars/${car.id}/units/${unitId}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const errorMessage = await readErrorMessage(response, 'Unit mobil belum berhasil dihapus.');
+      setUnitErrorByCarId((current) => ({
+        ...current,
+        [car.id]: errorMessage,
+      }));
+      return;
+    }
+    setUnitMessageByCarId((current) => ({
+      ...current,
+      [car.id]: 'Unit mobil berhasil dihapus permanen.',
+    }));
+    await loadCars();
+  }
+
   return (
     <div className="flex min-h-screen bg-background-light font-display text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
       <AdminSidebar />
@@ -464,14 +499,26 @@ export default function AdminMobilPage() {
                             </button>
                           </>
                         ) : (
-                          <button
-                            className="rounded border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                            disabled={!!editingUnitId || !!savingUnitId}
-                            onClick={() => startEditUnit(unit.id, unit.plateNumber, unit.status)}
-                            type="button"
-                          >
-                            Edit
-                          </button>
+                          <>
+                            <button
+                              className="rounded border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                              disabled={!!editingUnitId || !!savingUnitId}
+                              onClick={() => startEditUnit(unit.id, unit.plateNumber, unit.status)}
+                              type="button"
+                            >
+                              Edit
+                            </button>
+                            {showUnitDeleteButton && (
+                              <button
+                                className="rounded border border-red-200 px-2 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+                                disabled={!!editingUnitId || !!savingUnitId}
+                                onClick={() => deleteUnit(car, unit.id)}
+                                type="button"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     ))}

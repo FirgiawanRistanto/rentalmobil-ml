@@ -9,7 +9,7 @@ import {
   createPostDeactivateAdminCarHandler,
 } from '../app/api/admin/cars/[carId]/routeHandler';
 import { createPostAdminCarUnitsHandler } from '../app/api/admin/cars/[carId]/units/routeHandler';
-import { createPatchAdminCarUnitHandler } from '../app/api/admin/cars/[carId]/units/[unitId]/routeHandler';
+import { createPatchAdminCarUnitHandler, createDeleteAdminCarUnitHandler } from '../app/api/admin/cars/[carId]/units/[unitId]/routeHandler';
 import { AdminCarsServiceError, type AdminCarsUser } from './adminCarsService';
 
 const admin = { id: 'admin-1', role: 'ADMIN' };
@@ -228,12 +228,17 @@ describe('admin cars route handlers', () => {
       async deactivateAdminCarUnit() {
         return { id: 'unit-1', status: 'INACTIVE' };
       },
+      async deleteAdminCarUnit(_carId: string, _unitId: string, user: AdminCarsUser | null) {
+        assert.equal(user?.role, 'ADMIN');
+        return { id: 'unit-1', deleted: true };
+      },
     };
 
     const deleteCarHandler = createDeleteAdminCarHandler({ service, getCurrentUser: async () => admin });
     const deactivateCarHandler = createPostDeactivateAdminCarHandler({ service, getCurrentUser: async () => admin });
     const createUnitHandler = createPostAdminCarUnitsHandler({ service, getCurrentUser: async () => admin });
     const updateUnitHandler = createPatchAdminCarUnitHandler({ service, getCurrentUser: async () => admin });
+    const deleteUnitHandler = createDeleteAdminCarUnitHandler({ service, getCurrentUser: async () => admin });
 
     const deleteResponse = await deleteCarHandler(
       new Request('http://localhost/api/admin/cars/car-1'),
@@ -256,6 +261,12 @@ describe('admin cars route handlers', () => {
     assert.equal(deactivateResponse.status, 200);
     assert.equal(createUnitResponse.status, 201);
     assert.equal(updateUnitResponse.status, 200);
+
+    const deleteUnitResponse = await deleteUnitHandler(
+      new Request('http://localhost/api/admin/cars/car-1/units/unit-1', { method: 'DELETE' }),
+      { params: Promise.resolve({ carId: 'car-1', unitId: 'unit-1' }) },
+    );
+    assert.equal(deleteUnitResponse.status, 200);
   });
 
   it('maps CAR_HAS_HISTORY to a safe controlled delete error', async () => {

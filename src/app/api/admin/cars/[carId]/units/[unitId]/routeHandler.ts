@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  deactivateAdminCarUnit,
+  deleteAdminCarUnit,
   updateAdminCarUnit,
   type AdminCarUnitInput,
   type AdminCarsUser,
@@ -11,10 +11,10 @@ interface AdminCarUnitRouteService {
   updateAdminCarUnit(
     carId: string,
     unitId: string,
-    input: AdminCarUnitInput,
+    data: AdminCarUnitInput,
     user: AdminCarsUser | null,
   ): Promise<unknown>;
-  deactivateAdminCarUnit(carId: string, unitId: string, user: AdminCarsUser | null): Promise<unknown>;
+  deleteAdminCarUnit(carId: string, unitId: string, user: AdminCarsUser | null): Promise<unknown>;
 }
 
 interface AdminCarUnitRouteDependencies {
@@ -27,7 +27,7 @@ interface AdminCarUnitParams {
 }
 
 export function createPatchAdminCarUnitHandler(dependencies: AdminCarUnitRouteDependencies = {}) {
-  const service = dependencies.service ?? { updateAdminCarUnit, deactivateAdminCarUnit };
+  const service = dependencies.service ?? { updateAdminCarUnit, deleteAdminCarUnit };
   const getCurrentUser = dependencies.getCurrentUser ?? getSessionUser;
 
   return async function patchAdminCarUnit(request: Request, { params }: AdminCarUnitParams): Promise<NextResponse> {
@@ -43,14 +43,14 @@ export function createPatchAdminCarUnitHandler(dependencies: AdminCarUnitRouteDe
 }
 
 export function createDeleteAdminCarUnitHandler(dependencies: AdminCarUnitRouteDependencies = {}) {
-  const service = dependencies.service ?? { updateAdminCarUnit, deactivateAdminCarUnit };
+  const service = dependencies.service ?? { updateAdminCarUnit, deleteAdminCarUnit };
   const getCurrentUser = dependencies.getCurrentUser ?? getSessionUser;
 
   return async function deleteAdminCarUnit(_request: Request, { params }: AdminCarUnitParams): Promise<NextResponse> {
     try {
       const user = await getCurrentUser();
       const { carId, unitId } = await params;
-      return NextResponse.json(await service.deactivateAdminCarUnit(carId, unitId, user));
+      return NextResponse.json(await service.deleteAdminCarUnit(carId, unitId, user));
     } catch (error) {
       return mapAdminCarsError(error);
     }

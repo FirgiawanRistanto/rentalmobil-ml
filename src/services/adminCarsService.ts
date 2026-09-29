@@ -90,6 +90,7 @@ interface AdminCarsRepository {
   createUnit(carId: string, input: NormalizedUnitInput): Promise<AdminCarUnitSummary>;
   updateUnit(carId: string, unitId: string, input: NormalizedUnitInput): Promise<AdminCarUnitSummary | null>;
   deactivateUnit(carId: string, unitId: string): Promise<AdminCarUnitSummary | null>;
+  deleteUnit(carId: string, unitId: string): Promise<AdminCarUnitSummary | null>;
 }
 
 interface NormalizedCarInput {
@@ -581,6 +582,54 @@ export function createDrizzleAdminCarsRepository(): AdminCarsRepository {
 
       return updated ?? null;
     },
+
+    async deleteUnit(carId, unitId) {
+      const existing = await db.select({
+        id: carUnits.id,
+        plateNumber: carUnits.plateNumber,
+        status: carUnits.status,
+      })
+        .from(carUnits)
+        .where(and(eq(carUnits.id, unitId), eq(carUnits.carId, carId)));
+
+      const unit = existing[0];
+      if (!unit) return null;
+
+      try {
+        await db.transaction(async (tx) => {
+          const [locked] = await tx
+            .select({ id: carUnits.id })
+            .from(carUnits)
+            .where(and(eq(carUnits.id, unitId), eq(carUnits.carId, carId)))
+            .for('update');
+
+          if (!locked) {
+            throw new AdminCarsServiceError('CAR_UNIT_NOT_FOUND', 'Unit mobil tidak ditemukan.', 404);
+          }
+
+          const result = await tx.execute(sql`
+            select exists(
+              select 1 from bookings b where b."carUnitId" = ${unitId}::uuid
+            ) as "hasHistory"
+          `);
+          const [history] = mapRows<{ hasHistory: boolean }>(result);
+
+          if (history?.hasHistory) {
+            throw new AdminCarsServiceError(
+              'CAR_UNIT_HAS_HISTORY',
+              'Unit sudah memiliki riwayat booking. Ubah status unit menjadi INACTIVE agar data historis tetap aman.',
+              409,
+            );
+          }
+
+          await tx.delete(carUnits).where(and(eq(carUnits.id, unitId), eq(carUnits.carId, carId)));
+        });
+
+        return unit;
+      } catch (error) {
+        mapDatabaseError(error);
+      }
+    },
   };
 }
 
@@ -716,6 +765,20 @@ export async function deactivateAdminCarUnit(
 ): Promise<AdminCarUnitSummary> {
   assertAdmin(user);
   const unit = await repository.deactivateUnit(carId, unitId);
+  if (!unit) {
+    throw new AdminCarsServiceError('CAR_UNIT_NOT_FOUND', 'Unit mobil tidak ditemukan.', 404);
+  }
+  return unit;
+}
+
+export async function deleteAdminCarUnit(
+  carId: string,
+  unitId: string,
+  user: AdminCarsUser | null,
+  repository: AdminCarsRepository = drizzleAdminCarsRepository,
+): Promise<AdminCarUnitSummary> {
+  assertAdmin(user);
+  const unit = await repository.deleteUnit(carId, unitId);
   if (!unit) {
     throw new AdminCarsServiceError('CAR_UNIT_NOT_FOUND', 'Unit mobil tidak ditemukan.', 404);
   }

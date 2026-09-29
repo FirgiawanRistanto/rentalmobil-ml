@@ -77,7 +77,7 @@ describe('admin mobil polish routes and UI source', () => {
     assert.match(listPage, /Batal/);
     assert.match(listPage, /\/api\/admin\/cars\/\$\{car\.id\}\/units\/\$\{unitId\}/);
     assert.match(listPage, /className="flex min-w-0 items-center gap-2 rounded-lg border/);
-    assert.doesNotMatch(listPage, /deactivateAdminCarUnit/);
-    assert.doesNotMatch(listPage, />Hapus Unit</);
+    assert.match(listPage, /Hapus unit permanen\?/);
+    assert.match(listPage, /deleteUnit\(car, unit\.id\)/);
   });
 });
