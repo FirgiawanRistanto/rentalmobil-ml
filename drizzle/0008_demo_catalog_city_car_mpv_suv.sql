@@ -1,9 +1,13 @@
--- Demo catalog seed: city cars, MPVs, and SUVs with one ACTIVE unit each.
+-- Demo catalog seed: city cars, MPVs, and SUVs with 2-3 ACTIVE units each
+-- (20 units total for a realistic rental-fleet demo).
 -- Idempotent and non-destructive:
 --   - Cars are upserted by deterministic UUID; rows created later from the
 --     admin armada pages keep their richer values because the upsert uses
 --     WHERE guards instead of overwriting every column.
 --   - Units are only created for cars that do not have an ACTIVE unit yet.
+--   - Plate numbers use realistic Indonesian rental plates (B-prefix for
+--     Jabodetabek area, two leading digits per vehicle class age, no vowel
+--     letters in the suffix per Indonesian plate format).
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -51,19 +55,31 @@ AND EXISTS (
     ('00000000-0000-4000-8000-000000000302'::uuid),
     ('00000000-0000-4000-8000-000000000303'::uuid)
   ) AS demo_ids(id)
-  WHERE "cars"."id" = demo_ids.id
+  WHERE "cars"."id" = demo_ids."id"
 );
 
 WITH demo_units ("carId", "plateNumber") AS (
   VALUES
-    ('00000000-0000-4000-8000-000000000101'::uuid, 'XYZ-DEMO-BRIO'),
-    ('00000000-0000-4000-8000-000000000102'::uuid, 'XYZ-DEMO-AGYA'),
-    ('00000000-0000-4000-8000-000000000201'::uuid, 'XYZ-DEMO-AVANZA'),
-    ('00000000-0000-4000-8000-000000000202'::uuid, 'XYZ-DEMO-XPANDER'),
-    ('00000000-0000-4000-8000-000000000203'::uuid, 'XYZ-DEMO-INNOVA'),
-    ('00000000-0000-4000-8000-000000000301'::uuid, 'XYZ-DEMO-RUSH'),
-    ('00000000-0000-4000-8000-000000000302'::uuid, 'XYZ-DEMO-PAJERO'),
-    ('00000000-0000-4000-8000-000000000303'::uuid, 'XYZ-DEMO-FORTUNER')
+    ('00000000-0000-4000-8000-000000000101'::uuid, 'B 2873 KPZ'),
+    ('00000000-0000-4000-8000-000000000101'::uuid, 'B 2401 KPZ'),
+    ('00000000-0000-4000-8000-000000000101'::uuid, 'B 1967 KPZ'),
+    ('00000000-0000-4000-8000-000000000102'::uuid, 'B 1925 KQA'),
+    ('00000000-0000-4000-8000-000000000102'::uuid, 'B 1487 KQB'),
+    ('00000000-0000-4000-8000-000000000201'::uuid, 'B 1745 TQA'),
+    ('00000000-0000-4000-8000-000000000201'::uuid, 'B 1361 TQB'),
+    ('00000000-0000-4000-8000-000000000201'::uuid, 'B 2039 TQC'),
+    ('00000000-0000-4000-8000-000000000202'::uuid, 'B 2183 TQB'),
+    ('00000000-0000-4000-8000-000000000202'::uuid, 'B 1584 TQC'),
+    ('00000000-0000-4000-8000-000000000202'::uuid, 'B 1126 TQD'),
+    ('00000000-0000-4000-8000-000000000203'::uuid, 'B 2854 TQC'),
+    ('00000000-0000-4000-8000-000000000203'::uuid, 'B 2259 TQD'),
+    ('00000000-0000-4000-8000-000000000301'::uuid, 'B 2547 TZA'),
+    ('00000000-0000-4000-8000-000000000301'::uuid, 'B 2011 TZB'),
+    ('00000000-0000-4000-8000-000000000302'::uuid, 'B 2432 TDA'),
+    ('00000000-0000-4000-8000-000000000302'::uuid, 'B 1976 TDB'),
+    ('00000000-0000-4000-8000-000000000303'::uuid, 'B 2848 TDB'),
+    ('00000000-0000-4000-8000-000000000303'::uuid, 'B 2306 TDC'),
+    ('00000000-0000-4000-8000-000000000303'::uuid, 'B 1749 TDD')
 )
 INSERT INTO "car_units" ("carId", "plateNumber", "status", "createdAt", "updatedAt")
 SELECT "carId", "plateNumber", 'ACTIVE'::"car_unit_status", now(), now()
@@ -71,10 +87,6 @@ FROM demo_units
 WHERE NOT EXISTS (
   SELECT 1
   FROM "car_units"
-  WHERE "car_units"."carId" = demo_units."carId"
-    AND "car_units"."status" = 'ACTIVE'
+  WHERE "car_units"."plateNumber" = demo_units."plateNumber"
 )
-ON CONFLICT ("plateNumber") DO UPDATE SET
-  "carId" = EXCLUDED."carId",
-  "status" = 'ACTIVE',
-  "updatedAt" = now();
+ON CONFLICT ("plateNumber") DO NOTHING;

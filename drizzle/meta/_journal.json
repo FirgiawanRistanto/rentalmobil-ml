@@ -71,6 +71,20 @@
       "when": 1736380800000,
       "tag": "0009_booking_status_expired",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1736467200000,
+      "tag": "0010_rename_demo_plates",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1736553600000,
+      "tag": "0011_expand_demo_fleet_units",
+      "breakpoints": true
     }
   ]
 }
