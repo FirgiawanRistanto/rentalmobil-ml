@@ -1,0 +1,15 @@
+{
+  "rows": 41088,
+  "source_vehicles": 3424,
+  "availability_utilization_mismatches": 0,
+  "demand_utilization_mismatches": 0,
+  "demand_counts": {
+    "sepi": 13696,
+    "normal": 13696,
+    "ramai": 13696
+  },
+  "utilization_min": 0.05,
+  "utilization_max": 0.95,
+  "adjustment_min_pct": -32.0,
+  "adjustment_max_pct": 52.0
+}

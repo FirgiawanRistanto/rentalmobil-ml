@@ -1,0 +1,57 @@
+{
+  "study_case": "Rental Mobil XYZ (objek simulasi)",
+  "data_version": "v4_demand_derived_from_utilization_round_display_1000",
+  "source_rows": 5851,
+  "included_vehicle_listings": 3424,
+  "excluded_vehicle_listings": 2427,
+  "transactions_per_vehicle": 12,
+  "expanded_transaction_rows": 41088,
+  "target_for_model": "price_adjustment_pct",
+  "demand_derivation_rule": {
+    "formula": "utilization_rate = 1 - availability_ratio",
+    "sepi": "utilization_rate <= 0.30",
+    "normal": "0.30 < utilization_rate < 0.70",
+    "ramai": "utilization_rate >= 0.70",
+    "implementation_note": "Aturan ini wajib digunakan backend website ketika customer mengecek harga."
+  },
+  "feature_contract_recommendation": "Gunakan utilization_rate sebagai fitur numerik model; demand_level dipertahankan untuk status bisnis/UI dan audit, tidak wajib menjadi fitur RF karena merupakan turunan deterministik utilization_rate.",
+  "post_prediction_formula": "dynamic_price_raw_per_day = round_to_1_idr(base_price_idr_per_day * (1 + predicted_price_adjustment_pct))",
+  "display_rounding_policy": "Harga invoice ditampilkan dalam pembulatan Rp1.000 terdekat; harga raw dipertahankan untuk evaluasi.",
+  "display_price_rounding_unit_idr": 1000,
+  "demand_counts": {
+    "normal": 13696,
+    "ramai": 13696,
+    "sepi": 13696
+  },
+  "target_summary_pct": {
+    "min": -32.0,
+    "median": 5.35,
+    "max": 52.0,
+    "mean": 7.09
+  },
+  "label_components_for_audit_only": [
+    "component_utilization_pct",
+    "component_weekend_pct",
+    "component_holiday_pct",
+    "component_peak_pct",
+    "component_trip_pct",
+    "component_duration_pct",
+    "component_lead_pct",
+    "component_interaction_pct",
+    "operational_variation_pct"
+  ],
+  "features_not_permitted_for_training": [
+    "availability_ratio (jika utilization_rate digunakan; keduanya redundan)",
+    "demand_level (status UI turunan utilization_rate)",
+    "operational_variation_pct",
+    "component_*",
+    "price_adjustment_percent_display",
+    "dynamic_price_raw_per_day",
+    "dynamic_price_display_per_day",
+    "total_invoice_raw",
+    "total_invoice_display",
+    "pricing_reason"
+  ],
+  "practitioner_validation_cases": 36,
+  "practitioner_validation_status": "belum_divalidasi"
+}
