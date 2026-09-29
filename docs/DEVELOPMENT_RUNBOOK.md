@@ -205,6 +205,18 @@ CI menjalankan job **DB Migrate + Seed** (`.github/workflows/ci.yml`) dengan Pos
 
 > Beberapa integration test memerlukan koneksi PostgreSQL aktif (`DATABASE_URL` harus valid).
 
+### Retrain & Evaluasi Ulang Model (ml-service)
+
+```bash
+# Di direktori ml-service/ dengan venv .venv-v4 aktif:
+./.venv-v4/Scripts/python.exe scripts/generate_ml_evaluation_artifacts.py   # evaluasi 3 split untuk halaman admin
+./.venv-v4/Scripts/python.exe scripts/retrain_v4_model.py                   # retrain .pkl → staging (produksi aman)
+./.venv-v4/Scripts/python.exe scripts/retrain_v4_model.py --commit          # timpa artefak produksi + metadata
+./.venv-v4/Scripts/python.exe scripts/_demo_seed_contrast.py                # demo determinisme seed (sidang)
+```
+
+Keduanya deterministic (seed `random_state=42`, split group-based per kendaraan): angka evaluasi identik dengan halaman admin Machine Learning, dan model hasil retrain menghasilkan prediksi identik dengan artefak produksi. Setelah `--commit`, restart ml-service agar artefak baru dimuat.
+
 ---
 
 ## 10. Troubleshooting Umum

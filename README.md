@@ -106,8 +106,8 @@ npm run setup
 
 Yang dikerjakan `npm run setup`:
 
-- 10 migrasi berurutan: baseline core tables (`users`, `cars`, `bookings`), tabel pricing v4 (`pricing_quotes`, `booking_price_snapshots`, `car_units`, `pricing_model_versions`, `holidays`), fondasi Better Auth, pembayaran transfer manual, hingga enum status `EXPIRED`
-- Seed demo: 8 mobil (city car, MPV, SUV) beserta unit aktifnya (migrasi `0008`)
+- 12 migrasi berurutan: baseline core tables (`users`, `cars`, `bookings`), tabel pricing v4 (`pricing_quotes`, `booking_price_snapshots`, `car_units`, `pricing_model_versions`, `holidays`), fondasi Better Auth, pembayaran transfer manual, hingga enum status `EXPIRED`
+- Seed demo: 8 mobil (city car, MPV, SUV) beserta 20 unit aktif — 2–3 unit per mobil dengan plat Indonesia realistis (migrasi `0008` + `0011`)
 - Seed konfigurasi: model version `rf_adjustment_v4_final` (diaktifkan hanya bila belum ada model aktif lain) dan 17 hari libur nasional 2026
 - Verifikasi: 12 tabel, holiday tepat 17 baris, model aktif, katalog demo
 
@@ -215,6 +215,27 @@ pytest               # Test inference contract v4
 ```
 
 CI (`.github/workflows/ci.yml`) menjalankan dua job: **Web App** (typecheck, lint, build) dan **DB Migrate + Seed** — job kedua menyiapkan PostgreSQL 15 throwaway lalu menjalankan `npm run setup` **dua kali** (run kedua membuktikan idempotensi penuh), sehingga regresi setup tertangkap otomatis di setiap PR dan push.
+
+## 🤖 Retrain & Evaluasi Ulang Model (ml-service)
+
+Semua script ML dijalankan dari direktori `ml-service/` memakai venv `.venv-v4`:
+
+```bash
+# Evaluasi ulang 3 split (70/30, 80/20, 90/10) untuk halaman admin
+# Machine Learning — menimpa artefak di ml-service/artifacts/ml_evaluation/
+./.venv-v4/Scripts/python.exe scripts/generate_ml_evaluation_artifacts.py
+
+# Retrain model produksi ke .pkl — default menulis ke artifacts/v4_final_staging/
+# (artefak produksi TIDAK disentuh). Tambah --commit untuk menimpa artefak
+# produksi + metadata, lalu restart ml-service.
+./.venv-v4/Scripts/python.exe scripts/retrain_v4_model.py
+./.venv-v4/Scripts/python.exe scripts/retrain_v4_model.py --commit
+
+# Demo determinisme: dua run dengan seed identik vs dua run tanpa seed
+./.venv-v4/Scripts/python.exe scripts/_demo_seed_contrast.py
+```
+
+Keduanya bersifat **reproducible**: seed `random_state=42` dikunci pada split (group-based per kendaraan) maupun model Random Forest, sehingga angka yang dihasilkan identik dengan yang tampil di halaman admin. Antar-run, `generate_ml_evaluation_artifacts.py` hanya mengubah field `generatedAt`; `retrain_v4_model.py` menghasilkan model dengan prediksi identik terhadap artefak produksi (metrik MAE/RMSE/R² sama sampai digit terakhir).
 
 ## 📚 Dokumentasi Lanjutan
 
