@@ -23,6 +23,16 @@ import {
   verifyAdminPaymentClient,
 } from '@/services/adminPaymentClient';
 import { readAdminTransactionDetailClient, updateAdminBookingStatusClient } from '@/services/adminTransactionsClient';
+import {
+  getBookingExtensionBadgeClass,
+  getBookingExtensionStatusLabel,
+  type BookingExtensionSummary,
+} from '@/lib/bookingExtensionUi';
+import {
+  readAdminBookingExtensionClient,
+  rejectAdminBookingExtensionClient,
+  verifyAdminBookingExtensionClient,
+} from '@/services/bookingExtensionClient';
 
 interface AdminTransactionDetailPageProps {
   params: Promise<{ bookingId: string }>;
@@ -39,6 +49,174 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function normalizeReasons(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function ExtensionReviewSection({ bookingId }: { bookingId: string }) {
+  const [extension, setExtension] = useState<BookingExtensionSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadExtension() {
+      setIsLoading(true);
+      try {
+        const result = await readAdminBookingExtensionClient(bookingId);
+        if (isMounted) {
+          setExtension(result);
+        }
+      } catch {
+        if (isMounted) {
+          setExtension(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadExtension();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bookingId]);
+
+  async function handleVerify() {
+    if (isReviewing) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Terapkan perpanjangan?',
+      text: 'Tanggal kembali dan total invoice booking akan diperbarui.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Verifikasi & Terapkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#059669',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsReviewing(true);
+    setErrorMessage(null);
+    try {
+      const updated = await verifyAdminBookingExtensionClient(bookingId);
+      setExtension(updated);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Verifikasi perpanjangan gagal.');
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
+  async function handleReject() {
+    if (isReviewing) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Tolak perpanjangan?',
+      text: 'Booking tidak berubah dan customer dapat mengajukan ulang.',
+      icon: 'warning',
+      input: 'textarea',
+      inputLabel: 'Alasan penolakan',
+      inputPlaceholder: 'Contoh: Bukti transfer tidak dapat diverifikasi.',
+      inputAttributes: {
+        maxlength: '500',
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Tolak',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsReviewing(true);
+    setErrorMessage(null);
+    try {
+      const updated = await rejectAdminBookingExtensionClient(bookingId, String(result.value ?? ''));
+      setExtension(updated);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Penolakan perpanjangan gagal.');
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
+  if (isLoading || !extension) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-black">Perpanjangan Sewa</h2>
+
+      {errorMessage ? (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-slate-500 dark:text-slate-400">Status</span>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getBookingExtensionBadgeClass(extension.status)}`}>
+            {getBookingExtensionStatusLabel(extension.status)}
+          </span>
+        </div>
+        <Row label="Tanggal sebelumnya" value={formatDateId(extension.previousEndDate)} />
+        <Row label="Tanggal baru" value={formatDateId(extension.newEndDate)} />
+        <Row label="Hari tambahan" value={`${extension.extraDays} hari`} />
+        <Row label="Tagihan selisih" value={formatRupiahId(extension.extraAmount)} />
+        <Row label="Harga dinamis / hari" value={formatRupiahId(extension.dynamicPriceDisplayPerDay)} />
+        <Row label="Diajukan pada" value={extension.submittedAt ? formatDateTimeId(extension.submittedAt) : '-'} />
+        <Row label="Direview pada" value={extension.reviewedAt ? formatDateTimeId(extension.reviewedAt) : '-'} />
+        <Row label="Alasan penolakan" value={extension.rejectionReason || '-'} />
+      </div>
+
+      {extension.hasProof ? (
+        <a
+          className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+          href={`/api/admin/bookings/${bookingId}/extension/proof`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Lihat Bukti Pembayaran
+        </a>
+      ) : null}
+
+      {extension.status === 'SUBMITTED' ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isReviewing}
+            onClick={() => void handleVerify()}
+            type="button"
+          >
+            {isReviewing ? 'Memproses...' : 'Verifikasi & Terapkan'}
+          </button>
+          <button
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+            disabled={isReviewing}
+            onClick={() => void handleReject()}
+            type="button"
+          >
+            Tolak Perpanjangan
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 export default function AdminTransactionDetailPage({ params }: AdminTransactionDetailPageProps) {
@@ -264,6 +442,7 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
                   <h2 className="mb-4 text-lg font-black">Mobil dan Sewa</h2>
                   <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
                     <Row label="Mobil" value={transaction.car.name} />
+                    <Row label="No. Polisi Unit" value={transaction.car.unitPlate ?? '-'} />
                     <Row label="Kategori" value={transaction.car.category} />
                     <Row label="Tanggal mulai" value={formatDateId(transaction.rental.pickupDate)} />
                     <Row label="Tanggal kembali" value={formatDateId(transaction.rental.returnDate)} />
@@ -348,6 +527,8 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
                     </div>
                   ) : null}
                 </section>
+
+                <ExtensionReviewSection bookingId={transaction.bookingId} />
               </div>
             </>
           ) : null}

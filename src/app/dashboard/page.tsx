@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { authClient } from '@/lib/auth-client';
 import { signOutCurrentUser } from '@/lib/auth-ui';
@@ -17,6 +17,13 @@ import {
   type CustomerDashboardBooking,
 } from '@/lib/customerDashboardUi';
 import {
+  getBookingExtensionBadgeClass,
+  getBookingExtensionErrorMessage,
+  getBookingExtensionStatusLabel,
+  nextExtensionMinDate,
+  type BookingExtensionSummary,
+} from '@/lib/bookingExtensionUi';
+import {
   formatDateId,
   formatDateTimeId,
   formatRupiahId,
@@ -26,6 +33,13 @@ import {
 import { formatPricingModelLabel } from '@/lib/pricingQuoteUi';
 import { listCustomerDashboardBookingsClient } from '@/services/customerBookingDashboardClient';
 import { cancelBookingReservationClient } from '@/services/paymentClient';
+import {
+  BookingExtensionClientError,
+  cancelBookingExtensionClient,
+  createBookingExtensionClient,
+  readBookingExtensionClient,
+  submitBookingExtensionProofClient,
+} from '@/services/bookingExtensionClient';
 
 function DashboardMetric({
   icon,
@@ -67,14 +81,275 @@ function deadlineLabel(booking: CustomerDashboardBooking): string | null {
   return null;
 }
 
+function ExtensionPanel({
+  booking,
+  onRefresh,
+}: {
+  booking: CustomerDashboardBooking;
+  onRefresh: () => Promise<void>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [extension, setExtension] = useState<BookingExtensionSummary | null>(null);
+  const [newEndDate, setNewEndDate] = useState('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const minDate = nextExtensionMinDate(booking.rental.returnDate);
+  const showForm = !extension || extension.status === 'REJECTED' || extension.status === 'CANCELLED';
+
+  function toMessage(error: unknown): string {
+    if (error instanceof BookingExtensionClientError || error instanceof Error) {
+      return error.message;
+    }
+    return getBookingExtensionErrorMessage('UNKNOWN_ERROR');
+  }
+
+  async function handleOpen() {
+    setIsOpen(true);
+    setErrorMessage(null);
+    setIsLoading(true);
+    try {
+      const existing = await readBookingExtensionClient(booking.bookingId);
+      setExtension(existing);
+      if (existing?.status === 'VERIFIED') {
+        await onRefresh();
+      }
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isBusy || !newEndDate) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      const created = await createBookingExtensionClient(booking.bookingId, newEndDate);
+      setExtension(created);
+      setProofFile(null);
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleUpload() {
+    if (isBusy || !proofFile) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      const submitted = await submitBookingExtensionProofClient(booking.bookingId, proofFile);
+      setExtension(submitted);
+      setProofFile(null);
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function handleCancel() {
+    if (isBusy) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Batalkan perpanjangan?',
+      text: 'Permintaan perpanjangan akan dibatalkan dan bisa diajukan ulang.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Batalkan Perpanjangan',
+      cancelButtonText: 'Kembali',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      await cancelBookingExtensionClient(booking.bookingId);
+      setExtension(null);
+      setNewEndDate('');
+    } catch (error) {
+      setErrorMessage(toMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  if (!isOpen) {
+    return (
+      <div className="mt-5">
+        <button
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2.5 text-sm font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+          onClick={() => void handleOpen()}
+          type="button"
+        >
+          <span className="material-symbols-outlined text-lg">schedule</span>
+          Perpanjang Sewa
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-sm font-black text-slate-900 dark:text-white">Perpanjangan Durasi Sewa</p>
+        <button
+          className="text-xs font-bold text-slate-500 transition-colors hover:text-primary"
+          onClick={() => setIsOpen(false)}
+          type="button"
+        >
+          Tutup
+        </button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Memuat status perpanjangan...</p>
+      ) : (
+        <div>
+          {errorMessage ? (
+            <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {showForm ? (
+            <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleCreate}>
+              <div className="flex-1">
+                <label
+                  className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500"
+                  htmlFor={`extend-${booking.bookingId}`}
+                >
+                  Tanggal Kembali Baru{extension?.status === 'REJECTED' ? ' (ajukan ulang)' : ''}
+                </label>
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-sm text-slate-900 outline-none transition-colors focus:border-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                  id={`extend-${booking.bookingId}`}
+                  min={minDate}
+                  onChange={(event) => setNewEndDate(event.target.value)}
+                  required
+                  type="date"
+                  value={newEndDate}
+                />
+              </div>
+              <button
+                className="rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isBusy || !newEndDate}
+                type="submit"
+              >
+                {isBusy ? 'Menghitung...' : 'Hitung & Ajukan'}
+              </button>
+            </form>
+          ) : null}
+
+          {extension && !showForm ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getBookingExtensionBadgeClass(extension.status)}`}>
+                  {getBookingExtensionStatusLabel(extension.status)}
+                </span>
+                {extension.status === 'VERIFIED' ? (
+                  <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                    Sewa diperpanjang sampai {formatDateId(extension.newEndDate)}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="grid gap-2 rounded-lg bg-white p-3 text-sm dark:bg-slate-900 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Tanggal Baru</p>
+                  <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">
+                    {formatDateId(extension.newEndDate)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hari Tambahan</p>
+                  <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{extension.extraDays} hari</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Tagihan Selisih</p>
+                  <p className="mt-0.5 font-black text-primary">{formatRupiahId(extension.extraAmount)}</p>
+                </div>
+              </div>
+
+              {extension.status === 'REJECTED' && extension.rejectionReason ? (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:bg-red-950/30 dark:text-red-300">
+                  Alasan penolakan: {extension.rejectionReason}
+                </p>
+              ) : null}
+
+              {extension.status === 'AWAITING_PAYMENT' ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Transfer selisih tagihan di atas ke rekening Rental Mobil XYZ, lalu upload bukti pembayarannya.
+                  </p>
+                  <input
+                    accept="image/*,application/pdf"
+                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-bold file:text-primary"
+                    onChange={(event) => setProofFile(event.target.files?.[0] ?? null)}
+                    type="file"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isBusy || !proofFile}
+                      onClick={() => void handleUpload()}
+                      type="button"
+                    >
+                      {isBusy ? 'Mengupload...' : 'Upload Bukti Pembayaran'}
+                    </button>
+                    <button
+                      className="rounded-lg border border-red-200 px-4 py-2 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={isBusy}
+                      onClick={() => void handleCancel()}
+                      type="button"
+                    >
+                      Batalkan
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {extension.status === 'SUBMITTED' ? (
+                <p className="rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                  Bukti sudah dikirim — menunggu verifikasi admin. Tanggal sewa diperpanjang setelah disetujui.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BookingCard({
   booking,
   isCancelling,
   onCancel,
+  onRefresh,
 }: {
   booking: CustomerDashboardBooking;
   isCancelling: boolean;
   onCancel: (booking: CustomerDashboardBooking) => void;
+  onRefresh: () => Promise<void>;
 }) {
   const canUpload = canUploadPaymentProofFromDashboard(booking);
   const canCancel = canCancelReservationFromDashboard(booking);
@@ -92,6 +367,11 @@ function BookingCard({
             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {getCarCategoryDisplayLabel(booking.car.category)}
             </span>
+            {booking.car.unitPlate ? (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary">
+                {booking.car.unitPlate}
+              </span>
+            ) : null}
           </div>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {formatDateId(booking.rental.pickupDate)} - {formatDateId(booking.rental.returnDate)}
@@ -155,6 +435,10 @@ function BookingCard({
           </button>
         ) : null}
       </div>
+
+      {booking.bookingStatus === 'CONFIRMED' ? (
+        <ExtensionPanel booking={booking} onRefresh={onRefresh} />
+      ) : null}
     </article>
   );
 }
@@ -348,6 +632,7 @@ export default function UserDashboard() {
                     isCancelling={cancellingBookingId === booking.bookingId}
                     key={booking.bookingId}
                     onCancel={handleCancelReservation}
+                    onRefresh={loadDashboardBookings}
                   />
                 ))}
               </div>

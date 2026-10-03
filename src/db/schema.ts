@@ -17,6 +17,7 @@ import {
 export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
 export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'EXPIRED']);
 export const carUnitStatusEnum = pgEnum('car_unit_status', ['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
+export const bookingExtensionStatusEnum = pgEnum('booking_extension_status', ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED', 'CANCELLED']);
 export const tripTypeEnum = pgEnum('trip_type', ['DALAM_KOTA', 'LUAR_KOTA']);
 export const demandLevelEnum = pgEnum('demand_level', ['sepi', 'normal', 'ramai']);
 export const pricingQuoteStatusEnum = pgEnum('pricing_quote_status', ['ACTIVE', 'ACCEPTED', 'EXPIRED', 'INVALIDATED']);
@@ -194,6 +195,31 @@ export const bookingPayments = pgTable('booking_payments', {
 }, (table) => [
   uniqueIndex('booking_payments_booking_id_unique').on(table.bookingId),
   index('booking_payments_status_idx').on(table.status),
+]);
+
+export const bookingExtensions = pgTable('booking_extensions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('bookingId').references(() => bookings.id).notNull(),
+  previousEndDate: timestamp('previousEndDate', { mode: 'date' }).notNull(),
+  newEndDate: timestamp('newEndDate', { mode: 'date' }).notNull(),
+  extraDays: integer('extraDays').notNull(),
+  extraAmount: integer('extraAmount').notNull(),
+  dynamicPriceDisplayPerDay: integer('dynamicPriceDisplayPerDay').notNull(),
+  pricingReasons: jsonb('pricingReasons').notNull(),
+  modelVersion: text('modelVersion').notNull(),
+  status: bookingExtensionStatusEnum('status').default('AWAITING_PAYMENT').notNull(),
+  proofStorageKey: text('proofStorageKey'),
+  proofOriginalName: text('proofOriginalName'),
+  proofMimeType: text('proofMimeType'),
+  proofSizeBytes: integer('proofSizeBytes'),
+  submittedAt: timestamp('submittedAt', { mode: 'date', withTimezone: true }),
+  rejectionReason: text('rejectionReason'),
+  reviewedAt: timestamp('reviewedAt', { mode: 'date', withTimezone: true }),
+  reviewedByUserId: uuid('reviewedByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('booking_extensions_booking_id_idx').on(table.bookingId),
 ]);
 
 export const holidays = pgTable('holidays', {
