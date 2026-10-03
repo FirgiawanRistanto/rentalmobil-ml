@@ -13,19 +13,45 @@ import type {
   AdminCarUnitStatus,
 } from '@/services/adminCarsService';
 
-async function readErrorMessage(response: Response, fallback: string) {
+async function readErrorBody(response: Response, fallback: string): Promise<{ code: string; message: string }> {
   try {
     const contentType = response.headers.get('content-type') ?? '';
     if (contentType.includes('application/json')) {
-      const body = await response.json() as { error?: { message?: string } };
-      return body.error?.message || fallback;
+      const body = await response.json() as { error?: { code?: string; message?: string } };
+      return {
+        code: body.error?.code ?? '',
+        message: body.error?.message || fallback,
+      };
     }
 
-    const text = await response.text();
-    return text.trim() || `${fallback} (HTTP ${response.status})`;
+    // Respons non-JSON (mis. halaman error HTML dari server) tidak ditampilkan
+    // mentah-mentah ke pengguna; jatuhkan ke pesan fallback yang ramah.
+    const text = (await response.text()).trim();
+    const isHtml = contentType.includes('text/html')
+      || /^<!doctype html/i.test(text)
+      || /^<html[\s>]/i.test(text);
+    if (isHtml || !text) {
+      return { code: '', message: `${fallback} (HTTP ${response.status})` };
+    }
+    const message = text.length > 300 ? `${text.slice(0, 300)}…` : text;
+    return { code: '', message };
   } catch {
-    return `${fallback} (HTTP ${response.status})`;
+    return { code: '', message: `${fallback} (HTTP ${response.status})` };
   }
+}
+
+async function readErrorMessage(response: Response, fallback: string) {
+  return (await readErrorBody(response, fallback)).message;
+}
+
+function showDeleteRejectedAlert(title: string, text: string) {
+  return Swal.fire({
+    icon: 'warning',
+    title,
+    text,
+    confirmButtonText: 'Mengerti',
+    confirmButtonColor: '#0f172a',
+  });
 }
 
 export default function AdminMobilPage() {
@@ -118,7 +144,14 @@ export default function AdminMobilPage() {
     setMessage('');
     const response = await fetch(`/api/admin/cars/${carId}`, { method: 'DELETE' });
     if (!response.ok) {
-      setError(await readErrorMessage(response, 'Mobil belum berhasil dihapus.'));
+      const { code, message } = await readErrorBody(response, 'Mobil belum berhasil dihapus.');
+      if (code === 'CAR_HAS_HISTORY') {
+        await showDeleteRejectedAlert(
+          'Mobil tidak dapat dihapus',
+          'Mobil ini sudah memiliki riwayat transaksi (quote harga, booking, atau pembayaran) sehingga tidak dapat dihapus permanen agar data historis tetap aman. Gunakan tombol Nonaktifkan untuk menyembunyikan mobil dari katalog customer.',
+        );
+      }
+      setError(message);
       return;
     }
     setMessage('Mobil berhasil dihapus permanen dari katalog.');
@@ -259,10 +292,16 @@ export default function AdminMobilPage() {
     setUnitMessageByCarId((current) => ({ ...current, [car.id]: '' }));
     const response = await fetch(`/api/admin/cars/${car.id}/units/${unitId}`, { method: 'DELETE' });
     if (!response.ok) {
-      const errorMessage = await readErrorMessage(response, 'Unit mobil belum berhasil dihapus.');
+      const { code, message } = await readErrorBody(response, 'Unit mobil belum berhasil dihapus.');
+      if (code === 'CAR_UNIT_HAS_HISTORY') {
+        await showDeleteRejectedAlert(
+          'Unit mobil tidak dapat dihapus',
+          'Unit ini sudah memiliki riwayat booking sehingga tidak dapat dihapus permanen agar data historis tetap aman. Ubah status unit menjadi INACTIVE untuk menonaktifkannya.',
+        );
+      }
       setUnitErrorByCarId((current) => ({
         ...current,
-        [car.id]: errorMessage,
+        [car.id]: message,
       }));
       return;
     }

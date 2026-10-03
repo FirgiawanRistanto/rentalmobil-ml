@@ -49,6 +49,18 @@ describe('admin mobil polish routes and UI source', () => {
     assert.match(listPage, /Mobil akan dihapus permanen jika belum memiliki riwayat transaksi/);
   });
 
+  it('shows a rejection popup when deleting a car or unit that has transaction history', () => {
+    const listPage = readFileSync('src/app/admin/mobil/page.tsx', 'utf8');
+
+    assert.match(listPage, /CAR_HAS_HISTORY/);
+    assert.match(listPage, /Mobil tidak dapat dihapus/);
+    assert.match(listPage, /sudah memiliki riwayat transaksi/);
+    assert.match(listPage, /Gunakan tombol Nonaktifkan/);
+    assert.match(listPage, /CAR_UNIT_HAS_HISTORY/);
+    assert.match(listPage, /Unit mobil tidak dapat dihapus/);
+    assert.match(listPage, /riwayat booking/);
+  });
+
   it('exposes a dedicated admin-only deactivate route for cars', () => {
     assert.equal(existsSync('src/app/api/admin/cars/[carId]/deactivate/route.ts'), true);
     const route = readFileSync('src/app/api/admin/cars/[carId]/deactivate/route.ts', 'utf8');
