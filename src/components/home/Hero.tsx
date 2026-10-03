@@ -26,7 +26,7 @@ export default function Hero() {
 
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-text-secondary max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-          Besan Rental Mobil Lampung — Sistem harga dinamis berbasis <span className="text-brand-gold font-medium">Random Forest</span>. 
+         Rental Mobil XYZ — Sistem harga dinamis berbasis <span className="text-brand-gold font-medium">Random Forest</span>. 
           All-in termasuk supir &amp; BBM.
         </p>
 

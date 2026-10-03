@@ -47,7 +47,7 @@ export default function AdminSidebar() {
             <span className="material-symbols-outlined text-primary text-2xl">directions_car</span>
           </div>
           <div>
-            <h1 className="text-sm font-black text-slate-900 dark:text-white leading-tight">Besan Rental</h1>
+            <h1 className="text-sm font-black text-slate-900 dark:text-white leading-tight">Rental XYZ</h1>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">Admin Panel</p>
           </div>
         </div>

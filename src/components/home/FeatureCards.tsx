@@ -25,7 +25,7 @@ export default function FeatureCards() {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="font-heading text-3xl md:text-4xl font-800 text-text-primary mb-4">
-            Kenapa <span className="text-brand-gold">Besan Rental</span>?
+            Kenapa <span className="text-brand-gold">Rental XYZ</span>?
           </h2>
           <p className="text-text-secondary max-w-xl mx-auto">
             Bukan rental biasa — sistem kami menggunakan AI untuk menentukan harga terbaik secara real-time.

@@ -19,9 +19,9 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Besan Rental Mobil Lampung — Smart Rental dengan Harga AI",
+  title: "Rental Mobil XYZ",
   description:
-    "Rental mobil cerdas di Lampung. Harga dinamis berbasis AI Random Forest. All-in termasuk supir dan BBM.",
+    "Rental mobil cerdas. Harga dinamis berbasis AI Random Forest. All-in termasuk supir dan BBM.",
 };
 
 export default function RootLayout({

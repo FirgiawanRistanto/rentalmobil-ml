@@ -14,7 +14,7 @@ export default function StepIndicator() {
             Cara <span className="text-brand-gold">Sewa</span>
           </h2>
           <p className="text-text-secondary max-w-xl mx-auto">
-            4 langkah mudah untuk menyewa mobil di Besan Rental.
+            4 langkah mudah untuk menyewa mobil di Rental Mobil XYZ.
           </p>
         </div>
 
