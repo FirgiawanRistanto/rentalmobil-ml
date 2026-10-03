@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { DisplayCar } from '@/lib/data';
+import { DisplayCar, formatRupiahPrice } from '@/lib/data';
 
 interface CarCardProps {
   car: DisplayCar;
@@ -8,14 +8,6 @@ interface CarCardProps {
 export default function CarCard({ car }: CarCardProps) {
   const isAvailable = car.status === 'available';
   const isBooked = car.status === 'booked';
-  
-  // Format short price (e.g. 550000 -> 550k, 1500000 -> 1.5M)
-  const formatShortPrice = (price: number) => {
-    if (price >= 1000000) {
-      return `Rp ${price / 1000000}M`;
-    }
-    return `Rp ${price / 1000}k`;
-  };
 
   return (
     <div className={`group flex flex-col bg-white dark:bg-slate-900 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 transition-all ${isBooked ? 'opacity-80' : 'hover:shadow-xl'}`}>
@@ -42,7 +34,7 @@ export default function CarCard({ car }: CarCardProps) {
         
         <div className="mt-4 flex items-center justify-between">
           <p className="text-primary dark:text-blue-400 font-bold text-lg">
-            {formatShortPrice(car.basePrice)}<span className="text-xs text-slate-400 font-normal">/hari</span>
+            {formatRupiahPrice(car.basePrice)}<span className="text-xs text-slate-400 font-normal">/Hari</span>
           </p>
         </div>
         

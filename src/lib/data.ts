@@ -194,6 +194,11 @@ export function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
+/** Format rupiah penuh tanpa spasi (e.g. 1500000 -> Rp.1.500.000). */
+export function formatRupiahPrice(amount: number): string {
+  return `Rp.${new Intl.NumberFormat('id-ID').format(amount)}`;
+}
+
 export function getCarBySlug(slug: string): Car | undefined {
   return cars.find((car) => car.slug === slug);
 }

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { formatRupiah } from '@/lib/data';
+import { formatRupiahPrice } from '@/lib/data';
 import { buildFeaturedCars } from '@/lib/homeFeaturedCars';
 import { carService } from '@/services/carService';
 
@@ -43,7 +43,7 @@ export default async function HomePage() {
             <div className="relative w-full overflow-hidden rounded-2xl">
               <div className="absolute -inset-4 bg-primary/20 rounded-xl blur-3xl opacity-30"></div>
               {/* Image spans right seamlessly */}
-              <img alt="Besan Rental Hero" className="relative w-full h-auto aspect-video lg:aspect-auto lg:h-[600px] object-cover rounded-2xl shadow-2xl" src="/hero-banner.png" />
+              <img alt="Armada Rental Mobil XYZ" className="relative w-full h-auto aspect-video lg:aspect-auto lg:h-[600px] object-cover rounded-2xl shadow-2xl" src="/hero-banner.png" />
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default async function HomePage() {
                 <div className="p-6 flex flex-col flex-1">
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{car.name}</h3>
                   <p className="text-primary text-xl font-black mb-6">
-                    {formatRupiah(car.basePrice)} <span className="text-slate-400 text-sm font-normal">/ Hari</span>
+                    {formatRupiahPrice(car.basePrice)}<span className="text-slate-400 text-sm font-normal">/Hari</span>
                   </p>
                   <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400 text-sm mb-8 flex-1">
                     <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">person</span> {car.capacity} Kursi</span>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cars, formatRupiah } from '@/lib/data';
+import { cars, formatRupiahPrice } from '@/lib/data';
 
 // Show 3 "premium" featured cars
 const featuredCars = [
@@ -51,10 +51,10 @@ export default function CarCarousel() {
                     <div>
                       <span className="text-xs text-text-muted">Mulai dari</span>
                       <div className="font-heading text-xl font-700 text-brand-gold">
-                        {formatRupiah(car.basePrice)}
+                        {formatRupiahPrice(car.basePrice)}
                       </div>
                     </div>
-                    <span className="text-xs text-text-muted">/hari</span>
+                    <span className="text-xs text-text-muted">/Hari</span>
                   </div>
                 </div>
               </div>

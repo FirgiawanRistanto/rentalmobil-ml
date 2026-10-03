@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import DynamicPricingQuoteForm from '@/components/pricing/DynamicPricingQuoteForm';
-import { DbCar, DisplayCar, formatRupiah, getCarBySlug, mapDbCarToDisplayCar } from '@/lib/data';
+import { DbCar, DisplayCar, formatRupiahPrice, getCarBySlug, mapDbCarToDisplayCar } from '@/lib/data';
 
 export default function CarDetailPage() {
   const params = useParams();
@@ -86,7 +86,7 @@ export default function CarDetailPage() {
               </div>
               <div className="rounded-xl bg-primary/10 px-4 py-3 text-left md:text-right">
                 <p className="text-xs font-bold uppercase tracking-wider text-primary">Harga dasar</p>
-                <p className="text-lg font-black text-primary">{formatRupiah(car.basePrice)}/hari</p>
+                <p className="text-lg font-black text-primary">{formatRupiahPrice(car.basePrice)}/Hari</p>
               </div>
             </div>
 
