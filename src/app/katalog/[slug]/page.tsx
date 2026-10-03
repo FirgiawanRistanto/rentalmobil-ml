@@ -6,11 +6,18 @@ import { useParams } from 'next/navigation';
 import DynamicPricingQuoteForm from '@/components/pricing/DynamicPricingQuoteForm';
 import { DbCar, DisplayCar, formatRupiahPrice, getCarBySlug, mapDbCarToDisplayCar } from '@/lib/data';
 
+interface CarUnitOption {
+  id: string;
+  plateNumber: string;
+  status: string;
+}
+
 export default function CarDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
   const [car, setCar] = useState<DisplayCar | null>(null);
   const [isCarLoading, setIsCarLoading] = useState(true);
+  const [units, setUnits] = useState<CarUnitOption[]>([]);
 
   useEffect(() => {
     async function fetchCar() {
@@ -18,16 +25,19 @@ export default function CarDetailPage() {
       try {
         const response = await fetch(`/api/cars/${slug}`);
         if (response.ok) {
-          const data = (await response.json()) as DbCar;
+          const data = (await response.json()) as DbCar & { units?: CarUnitOption[] };
           setCar(mapDbCarToDisplayCar(data));
+          setUnits(data.units ?? []);
           return;
         }
 
         const staticCar = getCarBySlug(slug);
         setCar(staticCar ?? null);
+        setUnits([]);
       } catch {
         const staticCar = getCarBySlug(slug);
         setCar(staticCar ?? null);
+        setUnits([]);
       } finally {
         setIsCarLoading(false);
       }
@@ -139,6 +149,37 @@ export default function CarDetailPage() {
                 </li>
               </ul>
             </div>
+          </section>
+
+          <section className="rounded-xl bg-white p-6 shadow-sm dark:bg-slate-900">
+            <h3 className="mb-1 flex items-center gap-2 text-lg font-bold">
+              <span className="material-symbols-outlined text-primary">directions_car</span>
+              Unit Armada (No. Polisi)
+            </h3>
+            <p className="mb-4 text-sm text-slate-500">
+              Daftar unit mobil yang dapat dipilih saat melakukan booking.
+            </p>
+            {units.length > 0 ? (
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {units.map((unit) => (
+                  <li
+                    className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+                    key={unit.id}
+                  >
+                    <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                      {unit.plateNumber}
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Aktif
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Belum ada unit terdaftar untuk mobil ini.
+              </p>
+            )}
           </section>
         </div>
 

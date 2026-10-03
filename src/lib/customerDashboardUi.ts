@@ -18,6 +18,7 @@ export interface CustomerDashboardBooking {
     id: string;
     name: string;
     category: string;
+    unitPlate: string | null;
   };
   rental: {
     pickupDate: string;

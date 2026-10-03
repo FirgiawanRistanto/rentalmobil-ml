@@ -27,6 +27,7 @@ export interface CustomerBookingDashboardRow {
   carBrand: string;
   carModel: string;
   carCategory: string;
+  carUnitPlate: string | null;
   startDate: Date;
   endDate: Date;
   tripType: 'DALAM_KOTA' | 'LUAR_KOTA';
@@ -88,6 +89,7 @@ function createDefaultRepository(): CustomerBookingDashboardRepository {
           c.brand as "carBrand",
           c.model as "carModel",
           c.category as "carCategory",
+          cu."plateNumber" as "carUnitPlate",
           b."startDate" as "startDate",
           b."endDate" as "endDate",
           b."tripType" as "tripType",
@@ -101,6 +103,7 @@ function createDefaultRepository(): CustomerBookingDashboardRepository {
           p."rejectionReason" as "paymentRejectionReason"
         from bookings b
         join cars c on c.id = b."carId"
+        left join car_units cu on cu.id = b."carUnitId"
         left join booking_price_snapshots bps on bps."bookingId" = b.id
         left join booking_payments p on p."bookingId" = b.id
         where b."userId" = ${userId}
@@ -148,6 +151,7 @@ function mapCustomerBookingRow(
       id: row.carId,
       name: `${row.carBrand} ${row.carModel}`.trim(),
       category: row.carCategory,
+      unitPlate: row.carUnitPlate,
     },
     rental: {
       pickupDate: toDateOnlyString(row.startDate),

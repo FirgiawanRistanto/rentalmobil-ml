@@ -52,6 +52,7 @@ interface AdminTransactionRow {
   carBrand: string;
   carModel: string;
   carCategory: string;
+  carUnitPlate: string | null;
   snapshotBasePricePerDay: number | null;
   snapshotPredictedPriceAdjustmentPct: string | number | null;
   snapshotDynamicPriceRawPerDay: number | null;
@@ -258,6 +259,7 @@ function createDefaultRepository(): AdminTransactionsRepository {
     from bookings b
     join users u on u.id = b."userId"
     join cars c on c.id = b."carId"
+    left join car_units cu on cu.id = b."carUnitId"
     left join booking_price_snapshots bps on bps."bookingId" = b.id
     left join booking_payments p on p."bookingId" = b.id
   `;
@@ -296,6 +298,7 @@ function createDefaultRepository(): AdminTransactionsRepository {
         c.brand as "carBrand",
         c.model as "carModel",
         c.category as "carCategory",
+        cu."plateNumber" as "carUnitPlate",
         bps."basePricePerDay" as "snapshotBasePricePerDay",
         bps."predictedPriceAdjustmentPct" as "snapshotPredictedPriceAdjustmentPct",
         bps."dynamicPriceRawPerDay" as "snapshotDynamicPriceRawPerDay",
@@ -419,6 +422,7 @@ function mapTransactionRow(row: AdminTransactionRow, referenceTime: Date): Admin
       id: row.carId,
       name: `${row.carBrand} ${row.carModel}`.trim(),
       category: row.carCategory,
+      unitPlate: row.carUnitPlate,
     },
     rental: {
       pickupDate: toDateOnlyString(startDate),

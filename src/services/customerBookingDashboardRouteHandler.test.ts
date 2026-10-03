@@ -31,6 +31,7 @@ const responseBody = {
         id: 'car-1',
         name: 'Toyota Fortuner',
         category: 'SUV',
+        unitPlate: 'B 1234 XYZ',
       },
       rental: {
         pickupDate: '2026-06-15',

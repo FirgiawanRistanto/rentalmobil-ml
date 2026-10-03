@@ -21,6 +21,7 @@ export type BookingFromQuoteErrorCode =
   | 'SELECTED_CAR_UNAVAILABLE'
   | 'QUOTE_REPRICE_REQUIRED'
   | 'CAR_UNIT_ALLOCATION_FAILED'
+  | 'CAR_UNIT_UNAVAILABLE'
   | 'BOOKING_CREATION_FAILED';
 
 export class BookingFromQuoteError extends Error {
@@ -38,6 +39,7 @@ export interface CreateBookingFromQuoteInput {
   phoneNumber: string;
   pickupAddress: string;
   notes?: string | null;
+  carUnitId?: string | null;
 }
 
 export interface AuthenticatedBookingUser {
@@ -130,6 +132,7 @@ export interface BookingFromQuoteTransactionRepository {
     pickupDate: Date,
     returnDate: Date,
     referenceDate: Date,
+    preferredUnitId: string | null,
   ): Promise<string | null>;
   insertBooking(input: InsertBookingInput): Promise<{ id: string; status: 'PENDING' }>;
   insertSnapshot(input: InsertBookingSnapshotInput): Promise<void>;
@@ -151,7 +154,7 @@ interface BookingFromQuoteServiceDependencies {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ALLOWED_REQUEST_FIELDS = new Set(['quoteId', 'phoneNumber', 'pickupAddress', 'notes']);
+const ALLOWED_REQUEST_FIELDS = new Set(['quoteId', 'phoneNumber', 'pickupAddress', 'notes', 'carUnitId']);
 const PHONE_NUMBER_MAX_LENGTH = 32;
 const PICKUP_ADDRESS_MAX_LENGTH = 500;
 const NOTES_MAX_LENGTH = 1000;
@@ -198,6 +201,18 @@ function optionalText(value: unknown, fieldName: string, maxLength: number): str
   return trimmed.length > 0 ? validateTextLength(trimmed, fieldName, maxLength) : null;
 }
 
+function optionalUuid(value: unknown, fieldName: string): string | null {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    throw new BookingFromQuoteError('INVALID_BOOKING_REQUEST', `${fieldName} wajib berupa UUID valid.`);
+  }
+
+  return value;
+}
+
 export function isBlockingBookingStatusForAllocation(status: string): boolean {
   return status === 'PENDING' || status === 'CONFIRMED';
 }
@@ -234,6 +249,7 @@ export function validateCreateBookingFromQuoteRequest(value: unknown): CreateBoo
     phoneNumber: requiredText(value.phoneNumber, 'phoneNumber', PHONE_NUMBER_MAX_LENGTH),
     pickupAddress: requiredText(value.pickupAddress, 'pickupAddress', PICKUP_ADDRESS_MAX_LENGTH),
     notes: optionalText(value.notes, 'notes', NOTES_MAX_LENGTH),
+    carUnitId: optionalUuid(value.carUnitId, 'carUnitId'),
   };
 }
 
@@ -379,12 +395,14 @@ function createDrizzleBookingFromQuoteRepository(): BookingFromQuoteRepository {
               .where(eq(pricingQuotes.id, quoteId));
           },
 
-          async allocateAvailableCarUnit(carId, pickupDate, returnDate, referenceDate) {
+          async allocateAvailableCarUnit(carId, pickupDate, returnDate, referenceDate, preferredUnitId) {
+            const preferredFilter = preferredUnitId ? sql`and cu.id = ${preferredUnitId}::uuid` : sql``;
             const result = await tx.execute(sql`
               select cu.id
               from car_units cu
               where cu."carId" = ${carId}
                 and cu.status = 'ACTIVE'
+                ${preferredFilter}
                 and not exists (
                   select 1
                   from bookings b
@@ -647,8 +665,18 @@ export async function createBookingFromQuote(
         quote.pickupDate,
         quote.returnDate,
         acceptedAt,
+        input.carUnitId ?? null,
       );
       if (!carUnitId) {
+        // Unit pilihan pelanggan tidak tersedia: biarkan quote tetap aktif
+        // supaya pelanggan bisa memilih unit lain tanpa hitung ulang harga.
+        if (input.carUnitId) {
+          throw new BookingFromQuoteError(
+            'CAR_UNIT_UNAVAILABLE',
+            'Unit pilihan tidak tersedia untuk periode ini. Silakan pilih unit lain.',
+          );
+        }
+
         await tx.markQuoteInvalidated(quote.id, acceptedAt);
         throw new BookingFromQuoteError(
           'CAR_UNIT_ALLOCATION_FAILED',

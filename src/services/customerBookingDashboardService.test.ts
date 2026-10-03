@@ -19,6 +19,7 @@ function row(overrides: Partial<CustomerBookingDashboardRow> = {}): CustomerBook
     carBrand: 'Toyota',
     carModel: 'Fortuner',
     carCategory: 'SUV',
+    carUnitPlate: 'B 1234 XYZ',
     startDate: new Date('2026-06-15T00:00:00.000Z'),
     endDate: new Date('2026-06-18T00:00:00.000Z'),
     tripType: 'LUAR_KOTA',

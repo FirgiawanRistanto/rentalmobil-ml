@@ -58,6 +58,7 @@ export interface AdminTransactionListItem {
     id: string;
     name: string;
     category: string;
+    unitPlate: string | null;
   };
   rental: {
     pickupDate: string;

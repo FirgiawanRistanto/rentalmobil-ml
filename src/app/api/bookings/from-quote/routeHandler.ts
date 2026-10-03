@@ -46,7 +46,8 @@ function mapBookingFromQuoteError(error: BookingFromQuoteError): NextResponse<Er
     error.code === 'QUOTE_ALREADY_USED' ||
     error.code === 'SELECTED_CAR_UNAVAILABLE' ||
     error.code === 'QUOTE_REPRICE_REQUIRED' ||
-    error.code === 'CAR_UNIT_ALLOCATION_FAILED'
+    error.code === 'CAR_UNIT_ALLOCATION_FAILED' ||
+    error.code === 'CAR_UNIT_UNAVAILABLE'
   ) {
     return errorResponse(error.code, error.message, 409);
   }

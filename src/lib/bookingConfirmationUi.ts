@@ -61,6 +61,7 @@ export interface BookingFromQuoteRequest {
   phoneNumber: string;
   pickupAddress: string;
   notes?: string | null;
+  carUnitId?: string | null;
 }
 
 export interface BookingFromQuoteResponse {
@@ -155,6 +156,9 @@ export function validateBookingConfirmationForm(input: BookingFromQuoteRequest):
     phoneNumber: trimRequiredText(input.phoneNumber, 'Nomor HP', PHONE_NUMBER_MAX_LENGTH),
     pickupAddress: trimRequiredText(input.pickupAddress, 'Alamat penjemputan', PICKUP_ADDRESS_MAX_LENGTH),
     notes,
+    // Hanya disertakan saat pelanggan memilih unit — menjaga kompatibilitas
+    // dengan request lama yang hanya mengirim 4 field.
+    ...(input.carUnitId ? { carUnitId: input.carUnitId } : {}),
   };
 }
 
@@ -179,6 +183,8 @@ export function getBookingFromQuoteErrorMessage(code: string): string {
       return 'Ketersediaan atau kondisi harga telah berubah. Silakan hitung ulang harga.';
     case 'CAR_UNIT_ALLOCATION_FAILED':
       return 'Unit kendaraan tidak lagi tersedia. Silakan pilih ulang.';
+    case 'CAR_UNIT_UNAVAILABLE':
+      return 'Unit pilihan tidak tersedia untuk periode ini. Silakan pilih unit lain.';
     case 'BOOKING_CREATION_FAILED':
       return 'Booking belum berhasil dibuat. Silakan coba kembali.';
     default:

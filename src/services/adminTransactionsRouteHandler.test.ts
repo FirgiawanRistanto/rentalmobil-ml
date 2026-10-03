@@ -21,7 +21,7 @@ const responseBody = {
       createdAt: '2026-06-09T10:00:00.000Z',
       reservationExpiresAt: '2026-06-09T10:30:00.000Z',
       customer: { id: 'customer-1', name: 'Customer Test', email: 'customer@example.test' },
-      car: { id: 'car-1', name: 'Toyota Fortuner', category: 'suv' },
+      car: { id: 'car-1', name: 'Toyota Fortuner', category: 'suv', unitPlate: 'B 1234 XYZ' },
       rental: { pickupDate: '2026-06-15', returnDate: '2026-06-18', durationDays: 3, tripType: 'LUAR_KOTA' },
       pricing: { dynamicPriceDisplayPerDay: 1541000, totalInvoiceDisplay: 4623000, modelVersion: 'rf_adjustment_v4_final' },
       payment: null,

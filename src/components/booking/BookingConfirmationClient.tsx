@@ -28,6 +28,12 @@ interface BookingConfirmationClientProps {
   quoteId: string;
 }
 
+interface CarUnitOption {
+  id: string;
+  plateNumber: string;
+  available: boolean;
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 text-sm">
@@ -104,7 +110,7 @@ function QuoteSummary({ quote }: { quote: BookingQuoteReadResponse }) {
   );
 }
 
-function PendingBookingSuccess({ booking }: { booking: BookingFromQuoteResponse }) {
+function PendingBookingSuccess({ booking, carUnitPlate }: { booking: BookingFromQuoteResponse; carUnitPlate: string | null }) {
   const expired = isBookingReservationExpired(booking.reservationExpiresAt);
 
   return (
@@ -130,6 +136,7 @@ function PendingBookingSuccess({ booking }: { booking: BookingFromQuoteResponse 
 
         <div className="grid gap-4 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60 md:grid-cols-2">
           <SummaryRow label="Kode booking" value={booking.bookingId} />
+          <SummaryRow label="Unit (No. Polisi)" value={carUnitPlate ?? '-'} />
           <SummaryRow label="Status" value="Menunggu Pembayaran" />
           <SummaryRow label="Mulai sewa" value={formatDateId(booking.rental.pickupDate)} />
           <SummaryRow label="Durasi" value={`${booking.rental.durationDays} hari`} />
@@ -175,6 +182,9 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
   const [phoneNumber, setPhoneNumber] = useState('');
   const [pickupAddress, setPickupAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [units, setUnits] = useState<CarUnitOption[]>([]);
+  const [selectedCarUnitId, setSelectedCarUnitId] = useState('');
+  const [isUnitsLoading, setIsUnitsLoading] = useState(true);
   const [isLoadingQuote, setIsLoadingQuote] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -213,6 +223,54 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
     };
   }, [quoteId]);
 
+  useEffect(() => {
+    if (!quote) {
+      return;
+    }
+
+    const activeQuote = quote;
+    let isMounted = true;
+
+    async function loadUnits() {
+      setIsUnitsLoading(true);
+
+      try {
+        const pickupDate = activeQuote.rental.pickupDate.slice(0, 10);
+        const returnDate = activeQuote.rental.returnDate.slice(0, 10);
+        const response = await fetch(
+          `/api/cars/${activeQuote.car.id}?pickupDate=${pickupDate}&returnDate=${returnDate}`,
+        );
+        if (!response.ok) {
+          throw new Error('Gagal memuat daftar unit');
+        }
+
+        const data = (await response.json()) as { units?: CarUnitOption[] };
+        if (isMounted) {
+          const list = data.units ?? [];
+          setUnits(list);
+          const firstAvailable = list.find((unit) => unit.available);
+          if (firstAvailable) {
+            setSelectedCarUnitId(firstAvailable.id);
+          }
+        }
+      } catch {
+        if (isMounted) {
+          setUnits([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsUnitsLoading(false);
+        }
+      }
+    }
+
+    void loadUnits();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [quote]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -235,6 +293,7 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
         phoneNumber,
         pickupAddress,
         notes,
+        carUnitId: selectedCarUnitId,
       });
       setBooking(bookingResponse);
     } catch (error) {
@@ -251,7 +310,10 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
   if (booking) {
     return (
       <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 md:px-8">
-        <PendingBookingSuccess booking={booking} />
+        <PendingBookingSuccess
+          booking={booking}
+          carUnitPlate={units.find((unit) => unit.id === selectedCarUnitId)?.plateNumber ?? null}
+        />
       </main>
     );
   }
@@ -298,6 +360,60 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
             <p className="mt-1 text-sm text-slate-500">
               Data ini dipakai untuk membuat booking PENDING dari quote yang sudah Anda setujui.
             </p>
+          </div>
+
+          <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+            <p className="text-sm font-black text-slate-900 dark:text-white">Unit Mobil (No. Polisi)</p>
+            <p className="mb-3 text-xs text-slate-500">
+              Pilih unit spesifik yang akan Anda sewa pada periode ini.
+            </p>
+            {isUnitsLoading ? (
+              <p className="text-sm text-slate-500">Memuat daftar unit...</p>
+            ) : units.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {units.map((unit) => {
+                  const isSelected = selectedCarUnitId === unit.id;
+                  return (
+                    <label
+                      className={`flex items-center justify-between gap-3 rounded-lg border bg-white p-3 transition-colors dark:bg-slate-900 ${
+                        isSelected
+                          ? 'border-primary ring-1 ring-primary'
+                          : 'border-slate-200 dark:border-slate-700'
+                      } ${unit.available ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}
+                      key={unit.id}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <input
+                          checked={isSelected}
+                          className="h-4 w-4 accent-primary"
+                          disabled={!unit.available}
+                          name="carUnit"
+                          onChange={() => setSelectedCarUnitId(unit.id)}
+                          type="radio"
+                          value={unit.id}
+                        />
+                        <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">
+                          {unit.plateNumber}
+                        </span>
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          unit.available
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                            : 'bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-300'
+                        }`}
+                      >
+                        {unit.available ? 'Tersedia' : 'Dibooking'}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-red-600">
+                Daftar unit tidak dapat dimuat. Silakan muat ulang halaman.
+              </p>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -354,7 +470,7 @@ export default function BookingConfirmationClient({ quoteId }: BookingConfirmati
             </Link>
             <button
               className="rounded-xl bg-primary px-6 py-3 text-sm font-black text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isSubmitting || !phoneNumber.trim() || !pickupAddress.trim()}
+              disabled={isSubmitting || !phoneNumber.trim() || !pickupAddress.trim() || !selectedCarUnitId}
               type="submit"
             >
               {isSubmitting ? 'Membuat Booking...' : 'Konfirmasi Booking'}
