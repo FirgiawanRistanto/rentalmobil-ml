@@ -37,6 +37,10 @@ export interface AdminReportMetrics {
   dynamicPricingFlatTotal: number;
   dynamicPricingDynamicTotal: number;
   dynamicPricingUplift: number;
+  totalFines: number;
+  verifiedFineTotal: number;
+  pendingFineTotal: number;
+  rejectedFineTotal: number;
 }
 
 export interface AdminReportBreakdownItem {

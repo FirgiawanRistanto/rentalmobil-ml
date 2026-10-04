@@ -37,4 +37,15 @@ describe('admin laporan page source', () => {
     assert.match(page, /Flat vs Dinamis \(Selisih\)/);
     assert.doesNotMatch(page, /Peningkatan profit/);
   });
+
+  it('recaps late-return fine income in the report', () => {
+    const page = readFileSync('src/app/admin/laporan/page.tsx', 'utf8');
+    const service = readFileSync('src/services/adminReportService.ts', 'utf8');
+
+    assert.match(page, /Pendapatan Denda/);
+    assert.match(page, /metrics\.verifiedFineTotal/);
+    assert.match(page, /metrics\.totalFines/);
+    assert.match(service, /booking_fines/);
+    assert.match(service, /verifiedFineTotal/);
+  });
 });

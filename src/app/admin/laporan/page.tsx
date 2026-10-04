@@ -176,7 +176,7 @@ function ReportContent({ report }: { report: AdminReportResponse }) {
 
   return (
     <>
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           helper={`${metrics.pendingBookings} pending, ${metrics.completedBookings} selesai`}
           icon="receipt_long"
@@ -208,6 +208,29 @@ function ReportContent({ report }: { report: AdminReportResponse }) {
           label="Flat vs Dinamis (Selisih)"
           tone="purple"
           value={formatRupiahId(metrics.dynamicPricingUplift)}
+        />
+        <MetricCard
+          helper={(
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <span>Kasus periode ini</span>
+                <span className="font-black text-slate-900 dark:text-white">{metrics.totalFines} denda</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Menunggu verifikasi</span>
+                <span className="font-black text-slate-900 dark:text-white">{formatRupiahId(metrics.pendingFineTotal)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Dibatalkan</span>
+                <span className="font-black text-slate-900 dark:text-white">{formatRupiahId(metrics.rejectedFineTotal)}</span>
+              </div>
+            </div>
+          )}
+          helperClassName="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300"
+          icon="assignment_late"
+          label="Pendapatan Denda (Terverifikasi)"
+          tone="amber"
+          value={formatRupiahId(metrics.verifiedFineTotal)}
         />
       </section>
 

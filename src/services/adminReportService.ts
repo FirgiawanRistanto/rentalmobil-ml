@@ -281,7 +281,34 @@ function createDefaultRepository(): AdminReportRepository {
             join bookings b on b.id = bps."bookingId"
             where b."createdAt" >= ${range.startAt}
               and b."createdAt" < ${range.endAtExclusive}
-          ) as "dynamicPricingUplift"
+          ) as "dynamicPricingUplift",
+          (
+            select count(*)::int
+            from booking_fines f
+            where f."createdAt" >= ${range.startAt}
+              and f."createdAt" < ${range.endAtExclusive}
+          ) as "totalFines",
+          (
+            select coalesce(sum(f."fineAmount"), 0)::int
+            from booking_fines f
+            where f.status = 'VERIFIED'
+              and f."createdAt" >= ${range.startAt}
+              and f."createdAt" < ${range.endAtExclusive}
+          ) as "verifiedFineTotal",
+          (
+            select coalesce(sum(f."fineAmount"), 0)::int
+            from booking_fines f
+            where f.status in ('AWAITING_PAYMENT', 'SUBMITTED')
+              and f."createdAt" >= ${range.startAt}
+              and f."createdAt" < ${range.endAtExclusive}
+          ) as "pendingFineTotal",
+          (
+            select coalesce(sum(f."fineAmount"), 0)::int
+            from booking_fines f
+            where f.status = 'REJECTED'
+              and f."createdAt" >= ${range.startAt}
+              and f."createdAt" < ${range.endAtExclusive}
+          ) as "rejectedFineTotal"
       `);
       const [row] = mapRows<Record<string, unknown>>(result);
 
@@ -303,6 +330,10 @@ function createDefaultRepository(): AdminReportRepository {
         dynamicPricingFlatTotal: normalizeMoney(row?.dynamicPricingFlatTotal),
         dynamicPricingDynamicTotal: normalizeMoney(row?.dynamicPricingDynamicTotal),
         dynamicPricingUplift: normalizeMoney(row?.dynamicPricingUplift),
+        totalFines: normalizeCount(row?.totalFines),
+        verifiedFineTotal: normalizeMoney(row?.verifiedFineTotal),
+        pendingFineTotal: normalizeMoney(row?.pendingFineTotal),
+        rejectedFineTotal: normalizeMoney(row?.rejectedFineTotal),
       };
     },
 

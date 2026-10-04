@@ -34,6 +34,10 @@ function repository() {
         dynamicPricingFlatTotal: 4500000,
         dynamicPricingDynamicTotal: 4623000,
         dynamicPricingUplift: 123000,
+        totalFines: 3,
+        verifiedFineTotal: 750000,
+        pendingFineTotal: 250000,
+        rejectedFineTotal: 100000,
       };
     },
     async getBookingStatusBreakdown() {
@@ -124,6 +128,10 @@ describe('readAdminReport', () => {
     assert.equal(result.metrics.rejectedPayments, 1);
     assert.equal(result.metrics.expiredPayments, 1);
     assert.equal(result.metrics.dynamicPricingUplift, 123000);
+    assert.equal(result.metrics.totalFines, 3);
+    assert.equal(result.metrics.verifiedFineTotal, 750000);
+    assert.equal(result.metrics.pendingFineTotal, 250000);
+    assert.equal(result.metrics.rejectedFineTotal, 100000);
     assert.equal(result.metrics.averageAdjustmentPercentDisplay, 2.76);
     assert.equal(result.modelLabel, 'Model Harga Dinamis');
     assert.deepEqual(result.bookingStatusBreakdown.at(-1), {
