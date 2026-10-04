@@ -92,6 +92,13 @@
       "when": 1736640000000,
       "tag": "0012_booking_extensions",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1736726400000,
+      "tag": "0013_booking_fines",
+      "breakpoints": true
     }
   ]
 }

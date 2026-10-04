@@ -57,12 +57,14 @@ function repository(rows: unknown[]) {
     expiredWith: null as Date | null,
     receivedQuery: null as unknown,
     updatedStatus: null as string | null,
+    fineCalls: [] as Array<{ bookingId: string; date: Date }>,
     async expireSubmittedPayments(date: Date) {
       this.expiredWith = date;
     },
     async transaction<T>(callback: (tx: {
       lockBooking(): Promise<{ bookingId: string; bookingStatus: string } | null>;
       updateBookingStatus(bookingIdValue: string, status: string): Promise<void>;
+      completeBookingWithFine(bookingIdValue: string, actualReturnDate: Date): Promise<void>;
     }) => Promise<T>): Promise<T> {
       return callback({
         lockBooking: async () => rows[0]
@@ -73,6 +75,9 @@ function repository(rows: unknown[]) {
           : null,
         updateBookingStatus: async (_bookingIdValue, status) => {
           this.updatedStatus = status;
+        },
+        completeBookingWithFine: async (bookingIdValue, actualReturnDate) => {
+          this.fineCalls.push({ bookingId: bookingIdValue, date: actualReturnDate });
         },
       });
     },
@@ -258,6 +263,47 @@ describe('admin transactions service', () => {
           now: () => now,
         }),
       (error) => error instanceof AdminTransactionsServiceError && error.code === 'INVALID_BOOKING_STATUS_TRANSITION',
+    );
+  });
+
+  it('assesses late-return fine with the actual return date when completing', async () => {
+    const repo = repository([row({ bookingStatus: 'CONFIRMED' })]);
+
+    await updateAdminBookingStatus(bookingId, 'COMPLETED', admin, {
+      repository: repo as never,
+      now: () => now,
+    }, { actualReturnDate: '2026-06-21' });
+
+    assert.equal(repo.fineCalls.length, 1);
+    assert.equal(repo.fineCalls[0].bookingId, bookingId);
+    assert.deepEqual(
+      [repo.fineCalls[0].date.getFullYear(), repo.fineCalls[0].date.getMonth(), repo.fineCalls[0].date.getDate()],
+      [2026, 5, 21],
+    );
+    assert.equal(repo.updatedStatus, 'COMPLETED');
+  });
+
+  it('defaults actual return date to today and rejects malformed dates', async () => {
+    const repoDefault = repository([row({ bookingStatus: 'CONFIRMED' })]);
+
+    await updateAdminBookingStatus(bookingId, 'COMPLETED', admin, {
+      repository: repoDefault as never,
+      now: () => now,
+    });
+
+    assert.equal(repoDefault.fineCalls.length, 1);
+    assert.deepEqual(
+      [repoDefault.fineCalls[0].date.getFullYear(), repoDefault.fineCalls[0].date.getMonth(), repoDefault.fineCalls[0].date.getDate()],
+      [now.getFullYear(), now.getMonth(), now.getDate()],
+    );
+
+    await assert.rejects(
+      () =>
+        updateAdminBookingStatus(bookingId, 'COMPLETED', admin, {
+          repository: repository([row({ bookingStatus: 'CONFIRMED' })]) as never,
+          now: () => now,
+        }, { actualReturnDate: '21-06-2026' }),
+      (error) => error instanceof AdminTransactionsServiceError && error.code === 'INVALID_RETURN_DATE',
     );
   });
 });

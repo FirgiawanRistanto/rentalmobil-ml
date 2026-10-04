@@ -33,6 +33,18 @@ import {
   rejectAdminBookingExtensionClient,
   verifyAdminBookingExtensionClient,
 } from '@/services/bookingExtensionClient';
+import {
+  computeLateReturnFine,
+  daysPastDateOnly,
+  getBookingFineBadgeClass,
+  getBookingFineStatusLabel,
+  type BookingFineSummary,
+} from '@/lib/bookingFineUi';
+import {
+  readAdminBookingFineClient,
+  rejectAdminBookingFineClient,
+  verifyAdminBookingFineClient,
+} from '@/services/bookingFineClient';
 
 interface AdminTransactionDetailPageProps {
   params: Promise<{ bookingId: string }>;
@@ -218,6 +230,188 @@ function ExtensionReviewSection({ bookingId }: { bookingId: string }) {
     </section>
   );
 }
+function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefresh: () => Promise<void> }) {
+  const [fine, setFine] = useState<BookingFineSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFine() {
+      setIsLoading(true);
+      try {
+        const result = await readAdminBookingFineClient(bookingId);
+        if (isMounted) {
+          setFine(result);
+        }
+      } catch {
+        if (isMounted) {
+          setFine(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadFine();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bookingId]);
+
+  async function handleVerify() {
+    if (isReviewing) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: 'Terapkan denda?',
+      text: 'Total invoice booking akan bertambah sesuai denda keterlambatan.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Verifikasi & Terapkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#059669',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsReviewing(true);
+    setErrorMessage(null);
+    try {
+      const updated = await verifyAdminBookingFineClient(bookingId);
+      setFine(updated);
+      await onRefresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Verifikasi denda gagal.');
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
+  async function handleReject() {
+    if (isReviewing) {
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: fine?.status === 'AWAITING_PAYMENT' ? 'Batalkan denda?' : 'Tolak denda?',
+      text: 'Denda dibatalkan dan tidak dibebankan ke tagihan customer.',
+      icon: 'warning',
+      input: 'textarea',
+      inputLabel: 'Alasan (opsional)',
+      inputPlaceholder: 'Contoh: Pengembalian ternyata tepat waktu.',
+      inputAttributes: {
+        maxlength: '500',
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Batalkan',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    setIsReviewing(true);
+    setErrorMessage(null);
+    try {
+      const updated = await rejectAdminBookingFineClient(bookingId, String(result.value ?? ''));
+      setFine(updated);
+      await onRefresh();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Penolakan denda gagal.');
+    } finally {
+      setIsReviewing(false);
+    }
+  }
+
+  if (isLoading || !fine) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <h2 className="mb-4 text-lg font-black">Denda Keterlambatan</h2>
+
+      {errorMessage ? (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <div className="space-y-3 rounded-lg bg-slate-50 p-4 dark:bg-slate-800/60">
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-slate-500 dark:text-slate-400">Status</span>
+          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getBookingFineBadgeClass(fine.status)}`}>
+            {getBookingFineStatusLabel(fine.status)}
+          </span>
+        </div>
+        <Row label="Tanggal kembali (jatuh tempo)" value={formatDateId(fine.originalEndDate)} />
+        <Row label="Tanggal kembali aktual" value={formatDateId(fine.actualReturnDate)} />
+        <Row label="Hari telat" value={`${fine.lateDays} hari`} />
+        <Row label="Denda / hari" value={formatRupiahId(fine.finePerDay)} />
+        <Row label="Total denda" value={formatRupiahId(fine.fineAmount)} />
+        <Row label="Diajukan pada" value={fine.submittedAt ? formatDateTimeId(fine.submittedAt) : '-'} />
+        <Row label="Direview pada" value={fine.reviewedAt ? formatDateTimeId(fine.reviewedAt) : '-'} />
+        <Row label="Alasan" value={fine.rejectionReason || '-'} />
+      </div>
+
+      {fine.hasProof ? (
+        <a
+          className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+          href={`/api/admin/bookings/${bookingId}/fine/proof`}
+          rel="noreferrer"
+          target="_blank"
+        >
+          Lihat Bukti Pembayaran
+        </a>
+      ) : null}
+
+      {fine.status === 'SUBMITTED' ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isReviewing}
+            onClick={() => void handleVerify()}
+            type="button"
+          >
+            {isReviewing ? 'Memproses...' : 'Verifikasi & Terapkan'}
+          </button>
+          <button
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+            disabled={isReviewing}
+            onClick={() => void handleReject()}
+            type="button"
+          >
+            Tolak Denda
+          </button>
+        </div>
+      ) : null}
+
+      {fine.status === 'AWAITING_PAYMENT' ? (
+        <div className="mt-4">
+          <button
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
+            disabled={isReviewing}
+            onClick={() => void handleReject()}
+            type="button"
+          >
+            Batalkan Denda
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
 export default function AdminTransactionDetailPage({ params }: AdminTransactionDetailPageProps) {
   const [bookingId, setBookingId] = useState('');
@@ -340,23 +534,63 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
   async function handleMarkCompleted() {
     if (!transaction || isUpdatingStatus) return;
 
+    const now = new Date();
+    const defaultDate = [
+      String(now.getFullYear()),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+    const dailyRate = transaction.pricing.dynamicPriceDisplayPerDay ?? 0;
+    const dueReturnDate = transaction.rental.returnDate;
+
     const result = await Swal.fire({
       title: 'Selesaikan booking?',
-      text: 'Status booking akan berubah dari CONFIRMED menjadi COMPLETED.',
+      html:
+        '<p class="text-sm text-slate-600">Status booking akan berubah dari CONFIRMED menjadi COMPLETED. Isi tanggal mobil benar-benar dikembalikan.</p>' +
+        '<label class="mt-4 block text-left text-sm font-bold text-slate-700" for="swal-return-date">Tanggal kembali aktual</label>' +
+        '<input class="swal2-input" id="swal-return-date" type="date" value="' + defaultDate + '">' +
+        '<p class="mt-2 text-sm font-semibold" id="swal-fine-preview"></p>',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Tandai Selesai',
       cancelButtonText: 'Batal',
       confirmButtonColor: '#2563eb',
+      didOpen: () => {
+        const input = document.getElementById('swal-return-date') as HTMLInputElement | null;
+        const preview = document.getElementById('swal-fine-preview');
+        if (!input || !preview) return;
+        const updatePreview = () => {
+          const fine = computeLateReturnFine(dailyRate, dueReturnDate, input.value || defaultDate);
+          if (fine.lateDays > 0) {
+            preview.textContent = 'Telat ' + fine.lateDays + ' hari — denda ' + formatRupiahId(fine.fineAmount) + ' (' + formatRupiahId(fine.finePerDay) + ' x ' + fine.lateDays + ' hari)';
+            preview.className = 'mt-2 text-sm font-semibold text-red-600';
+          } else {
+            preview.textContent = 'Tepat waktu — tanpa denda.';
+            preview.className = 'mt-2 text-sm font-semibold text-emerald-600';
+          }
+        };
+        input.addEventListener('change', updatePreview);
+        updatePreview();
+      },
+      preConfirm: () => {
+        const input = document.getElementById('swal-return-date') as HTMLInputElement | null;
+        const value = input?.value || '';
+        if (!value) {
+          Swal.showValidationMessage('Tanggal kembali aktual wajib diisi.');
+          return null;
+        }
+        return { actualReturnDate: value };
+      },
     });
 
     if (!result.isConfirmed) return;
+    const actualReturnDate = (result.value as { actualReturnDate?: string } | undefined)?.actualReturnDate ?? defaultDate;
 
     setIsUpdatingStatus(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      await updateAdminBookingStatusClient(transaction.bookingId, 'COMPLETED');
+      await updateAdminBookingStatusClient(transaction.bookingId, 'COMPLETED', {}, actualReturnDate);
       setSuccessMessage('Booking berhasil ditandai selesai.');
       await loadTransaction(transaction.bookingId);
     } catch (error) {
@@ -372,6 +606,9 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
 
   const reasons = normalizeReasons(transaction?.priceSnapshot.pricingReasons);
   const statusTransitions = transaction ? getAdminBookingStatusTransitionOptions(transaction.bookingStatus) : [];
+  const overdueDays = transaction && transaction.bookingStatus === 'CONFIRMED'
+    ? daysPastDateOnly(transaction.rental.returnDate)
+    : 0;
 
   return (
     <div className="flex min-h-screen bg-background-light font-display text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
@@ -449,6 +686,12 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
                     <Row label="Durasi" value={`${transaction.rental.durationDays} hari`} />
                     <Row label="Jenis perjalanan" value={getTripTypeLabel(transaction.rental.tripType)} />
                   </div>
+                  {overdueDays > 0 ? (
+                    <p className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                      <span className="material-symbols-outlined text-[16px]">warning</span>
+                      Melewati batas kembali — telat {overdueDays} hari. Denda dihitung saat booking diselesaikan.
+                    </p>
+                  ) : null}
                 </section>
               </div>
 
@@ -529,6 +772,10 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
                 </section>
 
                 <ExtensionReviewSection bookingId={transaction.bookingId} />
+                <FineReviewSection
+                  bookingId={transaction.bookingId}
+                  onRefresh={() => loadTransaction(transaction.bookingId)}
+                />
               </div>
             </>
           ) : null}

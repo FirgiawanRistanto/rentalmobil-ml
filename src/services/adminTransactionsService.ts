@@ -12,6 +12,7 @@ import {
   type AdminTransactionListItem,
   type AdminTransactionsResponse,
 } from '../lib/adminTransactionUi';
+import { computeLateReturnFine } from '../lib/bookingFineUi';
 import { type BookingStatus, type PaymentStatus, type TripType } from '../lib/paymentUi';
 import {
   PaymentServiceError,
@@ -77,6 +78,7 @@ interface AdminBookingStatusRow {
 interface AdminBookingStatusTransactionRepository {
   lockBooking(bookingId: string): Promise<AdminBookingStatusRow | null>;
   updateBookingStatus(bookingId: string, nextStatus: BookingStatus, updatedAt: Date): Promise<void>;
+  completeBookingWithFine(bookingId: string, actualReturnDate: Date): Promise<void>;
 }
 
 interface AdminTransactionsRepository {
@@ -177,6 +179,26 @@ function assertAdminBookingStatusTransition(currentStatus: BookingStatus, nextSt
   throw new AdminTransactionsServiceError('INVALID_BOOKING_STATUS_TRANSITION', 'Transisi status booking tidak valid.');
 }
 
+
+function parseActualReturnDate(value: unknown, fallback: Date): Date {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AdminTransactionsServiceError('INVALID_RETURN_DATE', 'Tanggal kembali aktual harus memakai format YYYY-MM-DD.');
+  }
+
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const date = new Date(year, month - 1, day);
+  if (Number.isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    throw new AdminTransactionsServiceError('INVALID_RETURN_DATE', 'Tanggal kembali aktual tidak valid.');
+  }
+
+  return date;
+}
 function normalizeAdminTransactionsQuery(
   query: AdminTransactionsDependencies['query'],
 ): AdminTransactionsQuery {
@@ -361,6 +383,76 @@ function createDefaultRepository(): AdminTransactionsRepository {
               where id = ${bookingId}::uuid
             `);
           },
+          async completeBookingWithFine(bookingId, actualReturnDate) {
+            const extensionRows = mapRows<{ id: string; status: string }>(await tx.execute(sql`
+              select id, status
+              from booking_extensions
+              where "bookingId" = ${bookingId}::uuid
+                and status in ('AWAITING_PAYMENT', 'SUBMITTED')
+            `));
+
+            if (extensionRows.some((extension) => extension.status === 'SUBMITTED')) {
+              throw new AdminTransactionsServiceError(
+                'EXTENSION_PENDING_VERIFICATION',
+                'Masih ada perpanjangan yang menunggu verifikasi. Verifikasi atau tolak perpanjangan terlebih dahulu.',
+              );
+            }
+
+            if (extensionRows.some((extension) => extension.status === 'AWAITING_PAYMENT')) {
+              await tx.execute(sql`
+                update booking_extensions
+                set status = 'CANCELLED', "updatedAt" = now()
+                where "bookingId" = ${bookingId}::uuid
+                  and status = 'AWAITING_PAYMENT'
+              `);
+            }
+
+            const [bookingRow] = mapRows<{
+              endDate: Date | string;
+              startDate: Date | string;
+              totalPrice: number;
+              dynamicPriceDisplayPerDay: number | null;
+            }>(await tx.execute(sql`
+              select
+                b."endDate" as "endDate",
+                b."startDate" as "startDate",
+                b."totalPrice" as "totalPrice",
+                bps."dynamicPriceDisplayPerDay" as "dynamicPriceDisplayPerDay"
+              from bookings b
+              left join booking_price_snapshots bps on bps."bookingId" = b.id
+              where b.id = ${bookingId}::uuid
+            `));
+
+            const endDate = bookingRow ? normalizeDatabaseDate(bookingRow.endDate) : null;
+            const startDate = bookingRow ? normalizeDatabaseDate(bookingRow.startDate) : null;
+            if (!bookingRow || !endDate || !startDate) {
+              throw new AdminTransactionsServiceError('ADMIN_TRANSACTION_NOT_FOUND', 'Data transaksi tidak ditemukan.');
+            }
+
+            const durationDays = calculateRentalDurationDays(startDate, endDate);
+            const fallbackDaily = Math.max(0, Math.round(Number(bookingRow.totalPrice) / durationDays));
+            const dailyRate = bookingRow.dynamicPriceDisplayPerDay ?? fallbackDaily;
+            const fine = computeLateReturnFine(dailyRate, toDateOnlyString(endDate), toDateOnlyString(actualReturnDate));
+
+            if (fine.lateDays < 1) {
+              return;
+            }
+
+            await tx.execute(sql`
+              insert into booking_fines (
+                "bookingId", "originalEndDate", "actualReturnDate", "lateDays",
+                "finePerDay", "fineAmount", status
+              ) values (
+                ${bookingId}::uuid,
+                ${toDateOnlyString(endDate)}::timestamp,
+                ${toDateOnlyString(actualReturnDate)}::timestamp,
+                ${fine.lateDays},
+                ${fine.finePerDay},
+                ${fine.fineAmount},
+                'AWAITING_PAYMENT'
+              )
+            `);
+          },
         };
 
         return callback(txRepository);
@@ -523,6 +615,7 @@ export async function updateAdminBookingStatus(
   rawNextStatus: unknown,
   user: AdminTransactionsUser | null | undefined,
   dependencies: AdminTransactionsDependencies = {},
+  options: { actualReturnDate?: unknown } = {},
 ): Promise<AdminBookingStatusUpdateResponse> {
   assertAdminUser(user);
   const normalizedBookingId = assertBookingId(bookingId);
@@ -530,6 +623,9 @@ export async function updateAdminBookingStatus(
   const repository = dependencies.repository ?? createDefaultRepository();
   const now = dependencies.now ?? (() => new Date());
   const updatedAt = now();
+  const completing = nextStatus === 'COMPLETED';
+  const fallbackReturnDate = new Date(updatedAt.getFullYear(), updatedAt.getMonth(), updatedAt.getDate());
+  const actualReturnDate = completing ? parseActualReturnDate(options.actualReturnDate, fallbackReturnDate) : null;
 
   await repository.expireSubmittedPayments(updatedAt);
 
@@ -545,6 +641,11 @@ export async function updateAdminBookingStatus(
     }
 
     assertAdminBookingStatusTransition(booking.bookingStatus, nextStatus);
+
+    if (completing && actualReturnDate) {
+      await tx.completeBookingWithFine(booking.bookingId, actualReturnDate);
+    }
+
     await tx.updateBookingStatus(booking.bookingId, nextStatus, updatedAt);
 
     return {

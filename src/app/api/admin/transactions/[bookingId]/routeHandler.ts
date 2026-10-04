@@ -11,7 +11,13 @@ import {
 
 interface AdminTransactionDetailRouteService {
   readAdminTransactionDetail(bookingId: string, user: AdminTransactionsUser | null): Promise<unknown>;
-  updateAdminBookingStatus?(bookingId: string, status: unknown, user: AdminTransactionsUser | null): Promise<unknown>;
+  updateAdminBookingStatus?(
+    bookingId: string,
+    status: unknown,
+    user: AdminTransactionsUser | null,
+    dependencies?: unknown,
+    options?: { actualReturnDate?: unknown },
+  ): Promise<unknown>;
 }
 
 interface AdminTransactionDetailRouteDependencies {
@@ -65,7 +71,12 @@ export function createPatchAdminBookingStatusHandler(
         throw new Error('Status update service is not configured.');
       }
 
-      return NextResponse.json(await service.updateAdminBookingStatus(bookingId, (body as { status?: unknown }).status, user));
+      const requestBody = body as { status?: unknown; actualReturnDate?: unknown };
+      return NextResponse.json(
+        await service.updateAdminBookingStatus(bookingId, requestBody.status, user, undefined, {
+          actualReturnDate: requestBody.actualReturnDate,
+        }),
+      );
     } catch (error) {
       return mapAdminTransactionError(error);
     }

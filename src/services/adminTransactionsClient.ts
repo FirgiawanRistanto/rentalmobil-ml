@@ -126,6 +126,7 @@ export async function updateAdminBookingStatusClient(
   bookingId: string,
   nextStatus: BookingStatus,
   options: AdminTransactionsClientOptions = {},
+  actualReturnDate?: string,
 ): Promise<AdminBookingStatusUpdateResponse> {
   const fetchFn = options.fetchFn ?? fetch;
   const response = await fetchFn(buildAdminBookingStatusUpdateEndpoint(bookingId), {
@@ -134,7 +135,7 @@ export async function updateAdminBookingStatusClient(
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ status: nextStatus }),
+    body: JSON.stringify(actualReturnDate ? { status: nextStatus, actualReturnDate } : { status: nextStatus }),
   });
 
   if (!response.ok) {

@@ -40,6 +40,18 @@ import {
   readBookingExtensionClient,
   submitBookingExtensionProofClient,
 } from '@/services/bookingExtensionClient';
+import {
+  daysPastDateOnly,
+  getBookingFineBadgeClass,
+  getBookingFineErrorMessage,
+  getBookingFineStatusLabel,
+  type BookingFineSummary,
+} from '@/lib/bookingFineUi';
+import {
+  BookingFineClientError,
+  readBookingFineClient,
+  submitBookingFineProofClient,
+} from '@/services/bookingFineClient';
 
 function DashboardMetric({
   icon,
@@ -340,6 +352,149 @@ function ExtensionPanel({
   );
 }
 
+function FinePanel({ booking }: { booking: CustomerDashboardBooking }) {
+  const [fine, setFine] = useState<BookingFineSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBusy, setIsBusy] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadFine() {
+      try {
+        const result = await readBookingFineClient(booking.bookingId);
+        if (isMounted) {
+          setFine(result);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(toFineMessage(error));
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadFine();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [booking.bookingId]);
+
+  function toFineMessage(error: unknown): string {
+    if (error instanceof BookingFineClientError || error instanceof Error) {
+      return error.message;
+    }
+    return getBookingFineErrorMessage('UNKNOWN_ERROR');
+  }
+
+  async function handleUpload() {
+    if (isBusy || !proofFile) {
+      return;
+    }
+
+    setIsBusy(true);
+    setErrorMessage(null);
+    try {
+      const submitted = await submitBookingFineProofClient(booking.bookingId, proofFile);
+      setFine(submitted);
+      setProofFile(null);
+    } catch (error) {
+      setErrorMessage(toFineMessage(error));
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  if (isLoading || !fine) {
+    return null;
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-black text-slate-900 dark:text-white">Denda Keterlambatan Pengembalian</p>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getBookingFineBadgeClass(fine.status)}`}>
+          {getBookingFineStatusLabel(fine.status)}
+        </span>
+      </div>
+
+      {errorMessage ? (
+        <p className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <div className="grid gap-2 rounded-lg bg-white p-3 text-sm dark:bg-slate-900 sm:grid-cols-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</p>
+          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.originalEndDate)}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dikembalikan</p>
+          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.actualReturnDate)}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hari Telat</p>
+          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{fine.lateDays} hari</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Denda / Hari</p>
+          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatRupiahId(fine.finePerDay)}</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Denda</p>
+          <p className="mt-0.5 font-black text-red-600">{formatRupiahId(fine.fineAmount)}</p>
+        </div>
+      </div>
+
+      {fine.status === 'REJECTED' ? (
+        <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Denda dibatalkan admin{fine.rejectionReason ? `: ${fine.rejectionReason}` : ''}
+        </p>
+      ) : null}
+
+      {fine.status === 'VERIFIED' ? (
+        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          Denda sudah diverifikasi dan dibebankan ke tagihan. Muat ulang halaman untuk melihat total invoice terbaru.
+        </p>
+      ) : null}
+
+      {fine.status === 'SUBMITTED' ? (
+        <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+          Bukti sudah dikirim — menunggu verifikasi admin.
+        </p>
+      ) : null}
+
+      {fine.status === 'AWAITING_PAYMENT' ? (
+        <div className="mt-3 space-y-3">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Transfer denda di atas ke rekening Rental Mobil XYZ, lalu upload bukti pembayarannya.
+          </p>
+          <input
+            accept="image/*,application/pdf"
+            className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-bold file:text-primary"
+            onChange={(event) => setProofFile(event.target.files?.[0] ?? null)}
+            type="file"
+          />
+          <button
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isBusy || !proofFile}
+            onClick={() => void handleUpload()}
+            type="button"
+          >
+            {isBusy ? 'Mengupload...' : 'Upload Bukti Pembayaran'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 function BookingCard({
   booking,
   isCancelling,
@@ -353,6 +508,9 @@ function BookingCard({
 }) {
   const canUpload = canUploadPaymentProofFromDashboard(booking);
   const canCancel = canCancelReservationFromDashboard(booking);
+  const overdueDays = booking.bookingStatus === 'CONFIRMED'
+    ? daysPastDateOnly(booking.rental.returnDate)
+    : 0;
   const relevantDeadline = deadlineLabel(booking);
   const actionHref = canUpload || booking.payment.paymentStatus
     ? booking.actions.paymentPath
@@ -379,6 +537,12 @@ function BookingCard({
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {booking.rental.durationDays} hari, {getTripTypeLabel(booking.rental.tripType)}
           </p>
+          {overdueDays > 0 ? (
+            <p className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <span className="material-symbols-outlined text-[16px]">warning</span>
+              Melewati batas kembali — telat {overdueDays} hari
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col items-start gap-2 lg:items-end">
@@ -438,6 +602,10 @@ function BookingCard({
 
       {booking.bookingStatus === 'CONFIRMED' ? (
         <ExtensionPanel booking={booking} onRefresh={onRefresh} />
+      ) : null}
+
+      {booking.bookingStatus === 'COMPLETED' ? (
+        <FinePanel booking={booking} />
       ) : null}
     </article>
   );

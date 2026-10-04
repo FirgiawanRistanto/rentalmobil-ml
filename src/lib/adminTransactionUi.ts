@@ -346,6 +346,10 @@ export function getAdminTransactionErrorMessage(code: string): string {
       return 'Status final tidak dapat diubah dari halaman admin.';
     case 'ADMIN_TRANSACTION_UPDATE_FAILED':
       return 'Status booking belum berhasil diperbarui.';
+    case 'INVALID_RETURN_DATE':
+      return 'Tanggal kembali aktual tidak valid.';
+    case 'EXTENSION_PENDING_VERIFICATION':
+      return 'Masih ada perpanjangan yang menunggu verifikasi. Selesaikan dulu perpanjangan tersebut.';
     default:
       return 'Data transaksi belum dapat dibaca.';
   }

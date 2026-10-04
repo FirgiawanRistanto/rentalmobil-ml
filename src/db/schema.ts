@@ -18,6 +18,7 @@ export const roleEnum = pgEnum('role', ['CUSTOMER', 'ADMIN']);
 export const bookingStatusEnum = pgEnum('booking_status', ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'EXPIRED']);
 export const carUnitStatusEnum = pgEnum('car_unit_status', ['ACTIVE', 'MAINTENANCE', 'INACTIVE']);
 export const bookingExtensionStatusEnum = pgEnum('booking_extension_status', ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED', 'CANCELLED']);
+export const bookingFineStatusEnum = pgEnum('booking_fine_status', ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED']);
 export const tripTypeEnum = pgEnum('trip_type', ['DALAM_KOTA', 'LUAR_KOTA']);
 export const demandLevelEnum = pgEnum('demand_level', ['sepi', 'normal', 'ramai']);
 export const pricingQuoteStatusEnum = pgEnum('pricing_quote_status', ['ACTIVE', 'ACCEPTED', 'EXPIRED', 'INVALIDATED']);
@@ -221,6 +222,27 @@ export const bookingExtensions = pgTable('booking_extensions', {
 }, (table) => [
   index('booking_extensions_booking_id_idx').on(table.bookingId),
 ]);
+
+export const bookingFines = pgTable('booking_fines', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bookingId: uuid('bookingId').references(() => bookings.id).notNull().unique(),
+  originalEndDate: timestamp('originalEndDate', { mode: 'date' }).notNull(),
+  actualReturnDate: timestamp('actualReturnDate', { mode: 'date' }).notNull(),
+  lateDays: integer('lateDays').notNull(),
+  finePerDay: integer('finePerDay').notNull(),
+  fineAmount: integer('fineAmount').notNull(),
+  status: bookingFineStatusEnum('status').default('AWAITING_PAYMENT').notNull(),
+  proofStorageKey: text('proofStorageKey'),
+  proofOriginalName: text('proofOriginalName'),
+  proofMimeType: text('proofMimeType'),
+  proofSizeBytes: integer('proofSizeBytes'),
+  submittedAt: timestamp('submittedAt', { mode: 'date', withTimezone: true }),
+  rejectionReason: text('rejectionReason'),
+  reviewedAt: timestamp('reviewedAt', { mode: 'date', withTimezone: true }),
+  reviewedByUserId: uuid('reviewedByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date', withTimezone: true }).defaultNow().notNull(),
+});
 
 export const holidays = pgTable('holidays', {
   id: uuid('id').primaryKey().defaultRandom(),
