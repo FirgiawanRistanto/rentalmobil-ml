@@ -11,6 +11,8 @@ export type BookingFineStatus = (typeof BOOKING_FINE_STATUSES)[number];
  * Denda keterlambatan dihitung sebagai persentase dari tarif harian yang
  * sudah disepakati customer (snapshot harga booking) per hari telat.
  * 100% = setara biaya sewa satu hari tambahan (standar industri overstay).
+ * Nilai default ini bisa dikonfigurasi admin lewat pricing settings
+ * (`lateFineDailyRatePct`); konstanta dipakai sebagai fallback.
  */
 export const LATE_FINE_DAILY_RATE_PCT = 100;
 
@@ -52,11 +54,14 @@ function dayDiff(from: Date, to: Date): number {
 /**
  * Hitung denda keterlambatan per hari kalender. `actualReturnDate` sebelum
  * `originalEndDate` dianggap tepat waktu (tanpa denda).
+ * `dailyRatePct` = persentase tarif harian per hari telat (default konstanta;
+ * dikonfigurasi admin lewat pricing settings).
  */
 export function computeLateReturnFine(
   dailyRatePerDay: number,
   originalEndDate: string,
   actualReturnDate: string,
+  dailyRatePct: number = LATE_FINE_DAILY_RATE_PCT,
 ): LateReturnFineCalculation {
   const due = parseDateOnly(originalEndDate);
   const actual = parseDateOnly(actualReturnDate);
@@ -64,8 +69,9 @@ export function computeLateReturnFine(
     return { lateDays: 0, finePerDay: 0, fineAmount: 0 };
   }
 
+  const effectivePct = Number.isFinite(dailyRatePct) ? dailyRatePct : LATE_FINE_DAILY_RATE_PCT;
   const lateDays = Math.max(0, dayDiff(due, actual));
-  const finePerDay = Math.max(0, Math.round((dailyRatePerDay * LATE_FINE_DAILY_RATE_PCT) / 100));
+  const finePerDay = Math.max(0, Math.round((dailyRatePerDay * effectivePct) / 100));
   return { lateDays, finePerDay, fineAmount: finePerDay * lateDays };
 }
 

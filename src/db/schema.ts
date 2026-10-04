@@ -264,3 +264,10 @@ export const pricingModelVersions = pgTable('pricing_model_versions', {
   createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 });
+
+export const pricingSettings = pgTable('pricing_settings', {
+  key: text('key').primaryKey(),
+  value: integer('value').notNull(),
+  updatedByUserId: uuid('updatedByUserId').references(() => users.id),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});

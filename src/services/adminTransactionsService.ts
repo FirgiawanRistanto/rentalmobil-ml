@@ -12,7 +12,8 @@ import {
   type AdminTransactionListItem,
   type AdminTransactionsResponse,
 } from '../lib/adminTransactionUi';
-import { computeLateReturnFine } from '../lib/bookingFineUi';
+import { computeLateReturnFine, LATE_FINE_DAILY_RATE_PCT } from '../lib/bookingFineUi';
+import { LATE_FINE_RATE_SETTING_KEY, isValidLateFineRatePct } from '../lib/pricingSettingsUi';
 import { type BookingStatus, type PaymentStatus, type TripType } from '../lib/paymentUi';
 import {
   PaymentServiceError,
@@ -432,7 +433,20 @@ function createDefaultRepository(): AdminTransactionsRepository {
             const durationDays = calculateRentalDurationDays(startDate, endDate);
             const fallbackDaily = Math.max(0, Math.round(Number(bookingRow.totalPrice) / durationDays));
             const dailyRate = bookingRow.dynamicPriceDisplayPerDay ?? fallbackDaily;
-            const fine = computeLateReturnFine(dailyRate, toDateOnlyString(endDate), toDateOnlyString(actualReturnDate));
+
+            // Persentase tarif denda dikonfigurasi admin (pricing_settings);
+            // baris absen/rusak jatuh ke default konstanta.
+            const rateRows = mapRows<{ value: unknown }>(await tx.execute(sql`
+              select "value"
+              from pricing_settings
+              where "key" = ${LATE_FINE_RATE_SETTING_KEY}
+            `));
+            const configuredRate = Number(rateRows[0]?.value);
+            const lateFineRatePct = isValidLateFineRatePct(configuredRate)
+              ? configuredRate
+              : LATE_FINE_DAILY_RATE_PCT;
+
+            const fine = computeLateReturnFine(dailyRate, toDateOnlyString(endDate), toDateOnlyString(actualReturnDate), lateFineRatePct);
 
             if (fine.lateDays < 1) {
               return;

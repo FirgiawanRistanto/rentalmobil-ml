@@ -37,6 +37,7 @@ export default function AdminSidebar() {
     { name: 'Laporan', href: '/admin/laporan', icon: 'analytics' },
     { name: 'Machine Learning', href: '/admin/machine-learning', icon: 'modeling' },
     { name: 'Random Forest', href: '/admin/random-forest', icon: 'device_hub' },
+    { name: 'Pengaturan', href: '/admin/pengaturan', icon: 'settings' },
   ];
 
   return (

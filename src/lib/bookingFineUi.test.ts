@@ -32,6 +32,25 @@ describe('booking fine ui', () => {
     });
   });
 
+  it('applies a configurable daily rate percent when provided', () => {
+    assert.deepEqual(computeLateReturnFine(500_000, '2026-06-18', '2026-06-21', 150), {
+      lateDays: 3,
+      finePerDay: 750_000,
+      fineAmount: 2_250_000,
+    });
+    assert.deepEqual(computeLateReturnFine(500_000, '2026-06-18', '2026-06-19', 50), {
+      lateDays: 1,
+      finePerDay: 250_000,
+      fineAmount: 250_000,
+    });
+    // Nilai tidak valid jatuh ke default konstanta (100%).
+    assert.deepEqual(computeLateReturnFine(500_000, '2026-06-18', '2026-06-19', Number.NaN), {
+      lateDays: 1,
+      finePerDay: 500_000,
+      fineAmount: 500_000,
+    });
+  });
+
   it('rounds the per-day fine to whole rupiah', () => {
     assert.deepEqual(computeLateReturnFine(1_250.4, '2026-06-18', '2026-06-19'), {
       lateDays: 1,

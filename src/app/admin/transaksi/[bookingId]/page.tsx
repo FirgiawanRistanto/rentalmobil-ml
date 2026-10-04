@@ -38,6 +38,7 @@ import {
   daysPastDateOnly,
   getBookingFineBadgeClass,
   getBookingFineStatusLabel,
+  LATE_FINE_DAILY_RATE_PCT,
   type BookingFineSummary,
 } from '@/lib/bookingFineUi';
 import {
@@ -45,6 +46,7 @@ import {
   rejectAdminBookingFineClient,
   verifyAdminBookingFineClient,
 } from '@/services/bookingFineClient';
+import { readPricingSettingsClient } from '@/services/pricingSettingsClient';
 
 interface AdminTransactionDetailPageProps {
   params: Promise<{ bookingId: string }>;
@@ -421,6 +423,7 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [lateFineRatePct, setLateFineRatePct] = useState(LATE_FINE_DAILY_RATE_PCT);
 
   async function loadTransaction(bookingIdValue: string) {
     setIsLoading(true);
@@ -457,6 +460,24 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
       mounted = false;
     };
   }, [params]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    readPricingSettingsClient()
+      .then((rate) => {
+        if (mounted) {
+          setLateFineRatePct(rate);
+        }
+      })
+      .catch(() => {
+        // Preview tetap jalan dengan default; nilai final dibaca server saat menyelesaikan booking.
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   async function handleVerify() {
     if (!transaction?.payment || isReviewing) return;
@@ -560,9 +581,9 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
         const preview = document.getElementById('swal-fine-preview');
         if (!input || !preview) return;
         const updatePreview = () => {
-          const fine = computeLateReturnFine(dailyRate, dueReturnDate, input.value || defaultDate);
+          const fine = computeLateReturnFine(dailyRate, dueReturnDate, input.value || defaultDate, lateFineRatePct);
           if (fine.lateDays > 0) {
-            preview.textContent = 'Telat ' + fine.lateDays + ' hari — denda ' + formatRupiahId(fine.fineAmount) + ' (' + formatRupiahId(fine.finePerDay) + ' x ' + fine.lateDays + ' hari)';
+            preview.textContent = 'Telat ' + fine.lateDays + ' hari — denda ' + formatRupiahId(fine.fineAmount) + ' (' + formatRupiahId(fine.finePerDay) + ' x ' + fine.lateDays + ' hari, ' + lateFineRatePct + '% tarif harian)';
             preview.className = 'mt-2 text-sm font-semibold text-red-600';
           } else {
             preview.textContent = 'Tepat waktu — tanpa denda.';
