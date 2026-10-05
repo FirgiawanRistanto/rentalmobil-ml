@@ -11,7 +11,12 @@ from app.constants import (
     MODEL_VERSION,
     TARGET_NAME,
 )
-from app.model_loader import DynamicPricingV4ModelService, ModelLoadStatus, ModelNotReadyError
+from app.model_loader import (
+    DynamicPricingV4ModelService,
+    ModelLoadStatus,
+    ModelNotReadyError,
+    resolve_active_artifact,
+)
 from app.pricing import build_model_input, build_price_response, round_price_for_display
 from app.schemas import HealthResponse, PredictPriceRequest
 from main import create_app
@@ -31,6 +36,8 @@ VALID_PAYLOAD = {
 
 
 class StubModelService:
+    version = MODEL_VERSION
+
     def __init__(self, adjustment=0.2185, ready=True):
         self.adjustment = adjustment
         self.ready = ready
@@ -71,15 +78,15 @@ def test_health_reports_model_ready_with_real_artifact(real_model_service):
     with TestClient(create_app(real_model_service)) as client:
         response = client.get("/health")
 
+    body = response.json()
+    active_version, _, _ = resolve_active_artifact()
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "model_ready": True,
-        "model_version": "rf_adjustment_v4_final",
-        "target_name": "price_adjustment_pct",
-        "feature_contract_version": "v4",
-        "error": None,
-    }
+    assert body["status"] == "ok"
+    assert body["model_ready"] is True
+    assert body["model_version"] == active_version
+    assert body["target_name"] == "price_adjustment_pct"
+    assert body["feature_contract_version"] == "v4"
+    assert body["error"] is None
 
 
 def test_metadata_contract_is_validated(real_model_service):

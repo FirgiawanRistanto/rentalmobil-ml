@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-10T14:27:54.619084+00:00",
+  "generatedAt": "2026-10-05T05:58:40.825335+00:00",
   "dataset": "datasets\\car_rental_xyz_dynamic_pricing_v4.csv",
   "outputRoot": "artifacts\\ml_evaluation",
   "note": "Precomputed evaluation artifacts for the admin Machine Learning page. The web app must not train models at request time.",
@@ -15,9 +15,9 @@
       },
       "trainRows": 28752,
       "testRows": 12336,
-      "mae": 0.02117458827766882,
+      "mae": 0.02117458827766881,
       "r2": 0.9762964005951851,
-      "maePctPoint": 2.1174588277668818,
+      "maePctPoint": 2.117458827766881,
       "r2Percent": 97.62964005951851,
       "maeDisplayPriceIdr": 12315.418287937744,
       "sourceVehicleOverlap": 0
@@ -51,7 +51,7 @@
       },
       "trainRows": 36972,
       "testRows": 4116,
-      "mae": 0.02084632260179067,
+      "mae": 0.020846322601790666,
       "r2": 0.9767940030427024,
       "maePctPoint": 2.0846322601790668,
       "r2Percent": 97.67940030427023,

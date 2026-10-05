@@ -5,7 +5,13 @@ import {
   LATE_FINE_RATE_MAX,
   LATE_FINE_RATE_MIN,
   LATE_FINE_RATE_SETTING_KEY,
+  ML_RETRAIN_SETTING_KEYS,
+  getMlRetrainSettingBoundsMessage,
   isValidLateFineRatePct,
+  isValidMlRetrainSetting,
+  resolveMlRetrainSettings,
+  type MlRetrainSettingKey,
+  type MlRetrainSettings,
 } from '../lib/pricingSettingsUi';
 
 export type PricingSettingsErrorCode =
@@ -139,4 +145,69 @@ export async function updateLateFineDailyRatePct(
   const repository = dependencies.repository ?? defaultRepository;
   await repository.upsertValue(LATE_FINE_RATE_SETTING_KEY, value, actor.id);
   return value;
+}
+
+/**
+ * Terima number atau string numerik; harus bilangan bulat dalam rentang bounds
+ * key tsb. Melempar INVALID_SETTING_VALUE dengan pesan bounds spesifik field.
+ */
+export function parseMlRetrainSettingValue(key: MlRetrainSettingKey, rawValue: unknown): number {
+  const parsed = typeof rawValue === 'string' && rawValue.trim() !== '' ? Number(rawValue) : rawValue;
+
+  if (!isValidMlRetrainSetting(key, parsed)) {
+    throw new PricingSettingsError('INVALID_SETTING_VALUE', getMlRetrainSettingBoundsMessage(key));
+  }
+
+  return parsed;
+}
+
+/**
+ * Baca ambang guardrail & kelayakan retrain continuous learning yang berlaku.
+ * Baris absen atau rusak jatuh ke default konstanta guardrail.
+ */
+export async function readMlRetrainSettings(
+  user: PricingSettingsUser | null | undefined,
+  dependencies: PricingSettingsDependencies = {},
+): Promise<MlRetrainSettings> {
+  assertAdminUser(user);
+  const repository = dependencies.repository ?? defaultRepository;
+  const [maxMaeRegressionPct, minR2DropPp, minLiveSamples] = await Promise.all([
+    repository.readValue(ML_RETRAIN_SETTING_KEYS.maxMaeRegressionPct),
+    repository.readValue(ML_RETRAIN_SETTING_KEYS.minR2DropPp),
+    repository.readValue(ML_RETRAIN_SETTING_KEYS.minLiveSamples),
+  ]);
+
+  return resolveMlRetrainSettings({ maxMaeRegressionPct, minR2DropPp, minLiveSamples });
+}
+
+/**
+ * Validasi semua nilai dulu (tanpa menyimpan apa pun bila ada yang salah),
+ * lalu upsert baris yang dikenal; hanya admin.
+ */
+export async function updateMlRetrainSettings(
+  user: PricingSettingsUser | null | undefined,
+  rawValues: Partial<Record<MlRetrainSettingKey, unknown>>,
+  dependencies: PricingSettingsDependencies = {},
+): Promise<MlRetrainSettings> {
+  const actor = assertAdminUser(user);
+  const repository = dependencies.repository ?? defaultRepository;
+
+  const entries = (Object.keys(rawValues) as MlRetrainSettingKey[])
+    .filter((key) => key in ML_RETRAIN_SETTING_KEYS)
+    .map((key) => [key, parseMlRetrainSettingValue(key, rawValues[key])] as const);
+
+  if (entries.length === 0) {
+    throw new PricingSettingsError(
+      'INVALID_SETTING_VALUE',
+      'Tidak ada konfigurasi continuous learning yang dikenal pada permintaan ini.',
+    );
+  }
+
+  await Promise.all(
+    entries.map(([key, value]) =>
+      repository.upsertValue(ML_RETRAIN_SETTING_KEYS[key], value, actor.id),
+    ),
+  );
+
+  return readMlRetrainSettings(user, dependencies);
 }

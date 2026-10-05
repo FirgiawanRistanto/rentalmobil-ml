@@ -86,11 +86,18 @@ describe('mlPricingClient', () => {
     assert.deepEqual(receivedBody, buildMlPricingRequestBody(input));
   });
 
-  it('rejects mismatched model version, target, and feature contract', async () => {
+  it('accepts live-trained model versions but rejects mismatched target and feature contract', async () => {
+    const livePrediction = await requestMlPricePrediction(input, {
+      baseUrl: 'http://ml.local',
+      fetchFn: async () =>
+        jsonResponse({ ...validMlResponse, model_version: 'rf_adjustment_v4_live_20261004120000' }),
+    });
+    assert.equal(livePrediction.modelVersion, 'rf_adjustment_v4_live_20261004120000');
+
     await assert.rejects(
       () => requestMlPricePrediction(input, {
         baseUrl: 'http://ml.local',
-        fetchFn: async () => jsonResponse({ ...validMlResponse, model_version: 'old_model' }),
+        fetchFn: async () => jsonResponse({ ...validMlResponse, model_version: '' }),
       }),
       (error) => assertMlError(error, 'ML_CONTRACT_MISMATCH'),
     );

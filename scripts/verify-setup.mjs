@@ -15,6 +15,7 @@ const REQUIRED_TABLES = [
   'car_units',
   'cars',
   'holidays',
+  'ml_sample_overrides',
   'pricing_model_versions',
   'pricing_quotes',
   'sessions',
@@ -25,7 +26,10 @@ const REQUIRED_TABLES = [
 // Hitung dari ulang seed kedua: jika seed tidak idempotent, angka ini akan
 // membengkak dan CI gagal. Update nilai ini saat DEFAULT_HOLIDAYS berubah.
 const EXPECTED_HOLIDAY_COUNT = 17;
-const EXPECTED_ACTIVE_MODEL = 'rf_adjustment_v4_final';
+// Baris baseline wajib selalu ada; model AKTIF boleh versi mana pun karena
+// admin bisa mengaktifkan hasil retrain live (continuous learning) lewat
+// halaman Machine Learning, lalu rollback kapan pun.
+const EXPECTED_BASELINE_MODEL = 'rf_adjustment_v4_final';
 
 const failures = [];
 
@@ -64,13 +68,22 @@ async function main() {
     );
 
     const activeModel = await client.query(
-      'SELECT count(*)::int AS n FROM pricing_model_versions WHERE version = $1 AND "isActive" = true',
-      [EXPECTED_ACTIVE_MODEL]
+      'SELECT count(*)::int AS n FROM pricing_model_versions WHERE "isActive" = true'
     );
     check(
-      `pricing_model_versions: ${EXPECTED_ACTIVE_MODEL} aktif`,
+      'pricing_model_versions: tepat satu model aktif',
       activeModel.rows[0].n === 1,
       `ditemukan ${activeModel.rows[0].n}`
+    );
+
+    const baselineModel = await client.query(
+      'SELECT count(*)::int AS n FROM pricing_model_versions WHERE version = $1',
+      [EXPECTED_BASELINE_MODEL]
+    );
+    check(
+      `pricing_model_versions: baris baseline ${EXPECTED_BASELINE_MODEL} tetap tersimpan`,
+      baselineModel.rows[0].n === 1,
+      `ditemukan ${baselineModel.rows[0].n}`
     );
 
     const cars = await client.query('SELECT count(*)::int AS n FROM cars');

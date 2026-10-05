@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import AdminMachineLearningSplitSelector from '@/components/admin/AdminMachineLearningSplitSelector';
+import AdminMlContinualPanel from '@/components/admin/AdminMlContinualPanel';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import {
   ADMIN_ML_SPLITS,
@@ -25,6 +26,10 @@ import {
   type AdminMlTestRow,
   type AdminMlTrainRow,
 } from '@/services/adminMachineLearningService';
+import {
+  readAdminMlContinualStatus,
+  type AdminMlContinualStatus,
+} from '@/services/adminMlContinualService';
 
 export const dynamic = 'force-dynamic';
 
@@ -345,6 +350,8 @@ export default async function AdminMachineLearningPage({ searchParams }: AdminMa
       errorMessage: getErrorMessage(error),
     }))
     : null;
+  const continualStatus: AdminMlContinualStatus | null = await readAdminMlContinualStatus(user)
+    .catch(() => null);
 
   return (
     <div className="flex min-h-screen bg-background-light font-display text-slate-900 antialiased dark:bg-background-dark dark:text-slate-100">
@@ -364,6 +371,8 @@ export default async function AdminMachineLearningPage({ searchParams }: AdminMa
           <section className="flex rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <AdminMachineLearningSplitSelector currentSplit={selectedSplit} />
           </section>
+
+          <AdminMlContinualPanel status={continualStatus} />
 
           {!selectedSplit ? (
             <section className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">

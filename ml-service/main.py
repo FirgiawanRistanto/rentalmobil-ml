@@ -7,16 +7,23 @@ import app._init_patches  # noqa: F401  - apply sklearn pickle support before mo
 from app.constants import FEATURE_CONTRACT_VERSION, MODEL_VERSION, TARGET_NAME
 from app.model_loader import (
     DynamicPricingV4ModelService,
+    ModelActivationError,
     ModelNotReadyError,
     ModelPredictionError,
+    ModelVersionNotFoundError,
     default_model_service,
 )
 from app.pricing import build_price_response
+from app.retrain import DatasetMissingError, RetrainError, run_retrain
 from app.schemas import (
+    ActivateModelRequest,
+    ActivateModelResponse,
     HealthResponse,
     ModelInfoResponse,
     PredictPriceRequest,
     PredictPriceResponse,
+    RetrainRequest,
+    RetrainResponse,
     TreeStructureResponse,
 )
 
@@ -39,7 +46,7 @@ def create_app(model_service: DynamicPricingV4ModelService = default_model_servi
     def predict_price_v4(request: PredictPriceRequest) -> PredictPriceResponse:
         try:
             predicted_adjustment = model_service.predict_adjustment(request)
-            return build_price_response(request, predicted_adjustment)
+            return build_price_response(request, predicted_adjustment, model_service.version)
         except ModelNotReadyError as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -78,6 +85,69 @@ def create_app(model_service: DynamicPricingV4ModelService = default_model_servi
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
+
+    @app.post("/v1/model/retrain", response_model=RetrainResponse)
+    def retrain_v4(request: RetrainRequest) -> RetrainResponse:
+        """Retrain offline dari dataset dasar + baris live (guarded, staging)."""
+        try:
+            report = run_retrain(
+                version=request.version,
+                live_rows=[row.model_dump() for row in request.live_rows],
+                live_weight=request.live_weight,
+                guardrail=request.guardrail.model_dump(),
+            )
+        except DatasetMissingError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=str(exc),
+            ) from exc
+        except RetrainError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:
+            logger.exception("Dynamic Pricing v4 retrain failure.")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Retrain failed.",
+            ) from exc
+
+        logger.info(
+            "Retrain %s selesai (%s, %s baris live, %.1fdetik).",
+            report["version"],
+            report["status"],
+            report["live_rows_used"],
+            report["duration_seconds"],
+        )
+        return RetrainResponse(**report)
+
+    @app.post("/v1/model/activate", response_model=ActivateModelResponse)
+    def activate_model_v4(request: ActivateModelRequest) -> ActivateModelResponse:
+        """Jadikan artefak versi tertentu sebagai model aktif (swap atomik)."""
+        try:
+            result = model_service.activate(request.version)
+        except ModelVersionNotFoundError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=str(exc),
+            ) from exc
+        except ModelActivationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        except Exception as exc:
+            logger.exception("Dynamic Pricing v4 model activation failure.")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Model activation failed.",
+            ) from exc
+
+        return ActivateModelResponse(
+            model_version=str(result["model_version"]),
+            artifact_path=str(result["artifact_path"]),
+        )
 
     @app.post("/predict_price")
     def predict_price_legacy_deprecated():

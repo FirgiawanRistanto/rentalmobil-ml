@@ -10,7 +10,9 @@ Sistem Informasi Rental Mobil XYZ adalah aplikasi web untuk manajemen rental mob
 - **Dynamic Pricing v4** — quote harga real-time berdasarkan utilisasi armada, weekend, hari libur, musim puncak, tipe trip, durasi, dan lead time booking
 - **Invoice Preview & Pricing Snapshot** — harga yang disetujui customer disimpan permanen dan tidak dihitung ulang diam-diam
 - **Booking & Pembayaran** — booking dari quote, upload bukti transfer manual, verifikasi admin
-- **Dashboard Admin** — kelola mobil & unit, antrean pembayaran, transaksi, laporan, serta visualisasi model Random Forest (feature importance, pohon keputusan)
+- **Dashboard Admin** — kelola mobil & unit, antrean pembayaran, transaksi, laporan (termasuk rekap konversi quote), serta visualisasi model Random Forest (feature importance, pohon keputusan)
+- **Continuous Learning** — retrain model Random Forest dari data live dengan guardrail metrik, aktivasi/rollback versi model, dan ambang retrain yang bisa dikonfigurasi admin dari halaman Pengaturan
+- **Pengaturan Pricing** — tarif denda keterlambatan serta ambang guardrail/kelayakan retrain disimpan dinamis di tabel `pricing_settings`
 - **Authentication** — registrasi, login, dan session menggunakan Better Auth
 
 ## 🛠 Tech Stack
@@ -106,10 +108,10 @@ npm run setup
 
 Yang dikerjakan `npm run setup`:
 
-- 12 migrasi berurutan: baseline core tables (`users`, `cars`, `bookings`), tabel pricing v4 (`pricing_quotes`, `booking_price_snapshots`, `car_units`, `pricing_model_versions`, `holidays`), fondasi Better Auth, pembayaran transfer manual, hingga enum status `EXPIRED`
+- 16 migrasi berurutan: baseline core tables (`users`, `cars`, `bookings`), tabel pricing v4 (`pricing_quotes`, `booking_price_snapshots`, `car_units`, `pricing_model_versions`, `holidays`), fondasi Better Auth, pembayaran transfer manual, enum status `EXPIRED`, perpanjangan sewa, denda keterlambatan, tarif denda konfigurabel, hingga `ml_sample_overrides` (label manual continuous learning)
 - Seed demo: 8 mobil (city car, MPV, SUV) beserta 20 unit aktif — 2–3 unit per mobil dengan plat Indonesia realistis (migrasi `0008` + `0011`)
 - Seed konfigurasi: model version `rf_adjustment_v4_final` (diaktifkan hanya bila belum ada model aktif lain) dan 17 hari libur nasional 2026
-- Verifikasi: 12 tabel, holiday tepat 17 baris, model aktif, katalog demo
+- Verifikasi: 13 tabel, holiday tepat 17 baris, tepat satu model aktif + baris baseline, katalog demo
 
 Perintah per-komponen tetap tersedia: `npm run db:migrate`, `npm run db:seed`, `npm run verify:setup`, dan `npm run db:studio` untuk GUI data.
 
@@ -235,7 +237,9 @@ Semua script ML dijalankan dari direktori `ml-service/` memakai venv `.venv-v4`:
 ./.venv-v4/Scripts/python.exe scripts/_demo_seed_contrast.py
 ```
 
-Keduanya bersifat **reproducible**: seed `random_state=42` dikunci pada split (group-based per kendaraan) maupun model Random Forest, sehingga angka yang dihasilkan identik dengan yang tampil di halaman admin. Antar-run, `generate_ml_evaluation_artifacts.py` hanya mengubah field `generatedAt`; `retrain_v4_model.py` menghasilkan model dengan prediksi identik terhadap artefak produksi (metrik MAE/RMSE/R² sama sampai digit terakhir).
+Keduanya bersifat **reproducible**: seed `random_state=42` dikunci pada split (group-based per kendaraan) maupun model Random Forest, sehingga angka yang dihasilkan identik dengan yang tampil di halaman admin. Antar-run, `generate_ml_evaluation_artifacts.py` praktis hanya mengubah field `generatedAt` (perbedaan sisanya noise floating-point di digit terakhir, tidak mengubah angka material); `retrain_v4_model.py` menghasilkan model dengan prediksi identik terhadap artefak produksi (metrik MAE/RMSE/R² sama sampai digit terakhir).
+
+Artefak versi hasil retrain live di `ml-service/artifacts/versions/` otomatis dipangkas oleh ml-service setelah aktivasi sukses: maksimal 3 versi terbaru disimpan (versi aktif selalu aman) karena tiap versi ±340MB.
 
 ## 📚 Dokumentasi Lanjutan
 

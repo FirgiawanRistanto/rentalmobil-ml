@@ -27,6 +27,23 @@ describe('admin machine learning page source', () => {
     assert.doesNotMatch(service, /proofStorageKey/);
   });
 
+  it('embeds the continual learning panel for retrain and version management', () => {
+    const page = readFileSync('src/app/admin/machine-learning/page.tsx', 'utf8');
+    const panel = readFileSync('src/components/admin/AdminMlContinualPanel.tsx', 'utf8');
+    const service = readFileSync('src/services/adminMlContinualService.ts', 'utf8');
+
+    assert.match(page, /AdminMlContinualPanel/);
+    assert.match(page, /readAdminMlContinualStatus/);
+    assert.match(panel, /Continual Learning/);
+    assert.match(panel, /Retrain Model Sekarang/);
+    assert.match(panel, /Sinkronkan/);
+    assert.match(panel, /Pakai Otomatis/);
+    assert.match(service, /retrainAdminMlModel/);
+    assert.match(service, /ML_RETRAIN_GUARDRAIL_FAILED/);
+    assert.match(service, /activateAdminMlModelVersion/);
+    assert.doesNotMatch(panel, /chevron_right/);
+  });
+
   it('adds Machine Learning to admin sidebars', () => {
     const adminSidebar = readFileSync('src/components/admin/AdminSidebar.tsx', 'utf8');
     const layoutSidebar = readFileSync('src/components/layout/AdminSidebar.tsx', 'utf8');

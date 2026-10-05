@@ -100,3 +100,86 @@ class TreeStructureResponse(BaseModel):
     feature_names: list[str]
 
 
+# ---------------------------------------------------------------------------
+# Continuous learning (retrain + aktivasi versi model)
+# ---------------------------------------------------------------------------
+
+VERSION_SLUG_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_.-]{2,79}$"
+
+
+class LiveTrainingRow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    quote_id: str = Field(min_length=1, max_length=64)
+    vehicle_category: VehicleCategory
+    trip_type: TripType
+    duration_days: Annotated[StrictInt, Field(ge=1)]
+    is_weekend: BinaryFlag
+    is_holiday: BinaryFlag
+    is_peak_season: BinaryFlag
+    utilization_rate: Annotated[float, Field(ge=0, le=1)]
+    booking_lead_days: Annotated[StrictInt, Field(ge=0)]
+    target_price_adjustment_pct: Annotated[float, Field(ge=-1, le=1)] | None = None
+
+
+class RetrainGuardrailConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    max_mae_regression_ratio: Annotated[float, Field(gt=0, le=1)] = 0.10
+    min_r2_drop: Annotated[float, Field(ge=0, le=1)] = 0.02
+
+
+class RetrainRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = Field(min_length=3, max_length=80, pattern=VERSION_SLUG_PATTERN)
+    live_rows: list[LiveTrainingRow] = Field(default_factory=list, max_length=5000)
+    live_weight: Annotated[float, Field(gt=0, le=50)] = 5.0
+    guardrail: RetrainGuardrailConfig = Field(default_factory=RetrainGuardrailConfig)
+
+
+class RetrainMetrics(BaseModel):
+    mae_percentage_points: float
+    rmse_percentage_points: float
+    r2: float
+
+
+class RetrainGuardrailResult(BaseModel):
+    passed: bool
+    max_mae_regression_ratio: float
+    min_r2_drop: float
+    reasons: list[str]
+
+
+class RetrainResponse(BaseModel):
+    status: Literal["completed", "guardrail_failed"]
+    version: str
+    artifact_path: str | None
+    duration_seconds: float
+    live_rows_received: int
+    live_rows_used: int
+    live_rows_skipped_invalid: int
+    live_rows_labeled_rule: int
+    live_rows_labeled_manual: int
+    base_rows: int
+    train_rows: int
+    test_rows: int
+    live_holdout_rows: int
+    baseline_metrics: RetrainMetrics
+    metrics: RetrainMetrics
+    live_metrics: RetrainMetrics | None
+    guardrail: RetrainGuardrailResult
+
+
+class ActivateModelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str = Field(min_length=3, max_length=80, pattern=VERSION_SLUG_PATTERN)
+
+
+class ActivateModelResponse(BaseModel):
+    status: Literal["activated"] = "activated"
+    model_version: str
+    artifact_path: str
+
+

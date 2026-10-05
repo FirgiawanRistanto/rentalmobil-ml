@@ -173,6 +173,10 @@ function ReportContent({ report }: { report: AdminReportResponse }) {
   const metrics = report.metrics;
   const bookingTotal = report.bookingStatusBreakdown.reduce((total, item) => total + item.count, 0);
   const paymentTotal = report.paymentStatusBreakdown.reduce((total, item) => total + item.count, 0);
+  const conversionRate =
+    metrics.totalQuotes > 0
+      ? Math.round((metrics.acceptedQuotes / metrics.totalQuotes) * 1000) / 10
+      : 0;
 
   return (
     <>
@@ -231,6 +235,25 @@ function ReportContent({ report }: { report: AdminReportResponse }) {
           label="Pendapatan Denda (Terverifikasi)"
           tone="amber"
           value={formatRupiahId(metrics.verifiedFineTotal)}
+        />
+        <MetricCard
+          helper={(
+            <div className="space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <span>Quote diterima (ACCEPTED)</span>
+                <span className="font-black text-slate-900 dark:text-white">{metrics.acceptedQuotes}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Total quote pada periode ini</span>
+                <span className="font-black text-slate-900 dark:text-white">{metrics.totalQuotes}</span>
+              </div>
+            </div>
+          )}
+          helperClassName="mt-3 text-sm font-semibold text-slate-600 dark:text-slate-300"
+          icon="conversion_path"
+          label="Konversi Quote Dynamic Pricing"
+          tone="blue"
+          value={`${conversionRate}%`}
         />
       </section>
 

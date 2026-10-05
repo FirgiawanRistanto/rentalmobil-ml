@@ -271,3 +271,14 @@ export const pricingSettings = pgTable('pricing_settings', {
   updatedByUserId: uuid('updatedByUserId').references(() => users.id),
   updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
 });
+
+// Koreksi manual label target penyesuaian harga untuk sampel live
+// continuous learning (retrain model Random Forest dari transaksi nyata).
+export const mlSampleOverrides = pgTable('ml_sample_overrides', {
+  quoteId: uuid('quoteId').primaryKey().references(() => pricingQuotes.id, { onDelete: 'cascade' }),
+  targetAdjustmentPct: numeric('targetAdjustmentPct', { precision: 10, scale: 6 }).notNull(),
+  note: text('note'),
+  updatedByUserId: uuid('updatedByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt', { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp('updatedAt', { mode: 'date' }).defaultNow().notNull(),
+});

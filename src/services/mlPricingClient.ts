@@ -126,7 +126,9 @@ export function parseMlPricingResponse(value: unknown): MlPricingPrediction {
   const targetName = requiredString(value, 'target_name');
   const featureContractVersion = requiredString(value, 'feature_contract_version');
 
-  assertContract(modelVersion, ML_MODEL_VERSION, 'model_version');
+  // Kontrak target & fitur wajib tetap v4. model_version sengaja longgar:
+  // bisa baseline (rf_adjustment_v4_final) maupun hasil retrain live
+  // (rf_adjustment_v4_live_*) begitu admin mengaktifkan versi baru.
   assertContract(targetName, ML_TARGET_NAME, 'target_name');
   assertContract(featureContractVersion, ML_FEATURE_CONTRACT_VERSION, 'feature_contract_version');
 

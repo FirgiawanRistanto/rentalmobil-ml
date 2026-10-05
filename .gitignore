@@ -52,6 +52,11 @@ ml-service/**/*.pyc
 ml-service/artifacts/**/*.pkl
 ml-service/artifacts/**/*.joblib
 
+# Continuous learning: artefak versi hasil retrain live + pointer versi aktif
+# (tidak ditrack; diproduksi lokal oleh POST /v1/model/retrain & /v1/model/activate)
+ml-service/artifacts/versions/
+ml-service/artifacts/current.json*
+
 # ML training dataset (~15 MB CSV, reproduced from the Kaggle source + simulation
 # pipeline rather than kept in Git history)
 ml-service/datasets/

@@ -2,7 +2,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 import pandas as pd
 
-from .constants import DISPLAY_ROUNDING_UNIT_IDR, MODEL_FEATURES
+from .constants import DISPLAY_ROUNDING_UNIT_IDR, MODEL_FEATURES, MODEL_VERSION
 from .schemas import PredictPriceRequest, PredictPriceResponse
 
 
@@ -33,7 +33,11 @@ def round_price_for_display(raw_price_idr: int, unit_idr: int = DISPLAY_ROUNDING
     return int(rounded_units * Decimal(unit_idr))
 
 
-def build_price_response(request: PredictPriceRequest, predicted_adjustment: float) -> PredictPriceResponse:
+def build_price_response(
+    request: PredictPriceRequest,
+    predicted_adjustment: float,
+    model_version: str = MODEL_VERSION,
+) -> PredictPriceResponse:
     adjustment = Decimal(str(predicted_adjustment))
     base_price = Decimal(request.base_price_idr_per_day)
     dynamic_price_raw_per_day = round_idr_half_up(base_price * (Decimal("1") + adjustment))
@@ -42,6 +46,7 @@ def build_price_response(request: PredictPriceRequest, predicted_adjustment: flo
     percent_display = (adjustment * Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     return PredictPriceResponse(
+        model_version=model_version,
         predicted_price_adjustment_pct=float(adjustment),
         predicted_price_adjustment_percent_display=float(percent_display),
         base_price_idr_per_day=request.base_price_idr_per_day,

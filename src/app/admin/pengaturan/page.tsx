@@ -1,7 +1,12 @@
+import AdminMlRetrainSettingsForm from '@/components/admin/AdminMlRetrainSettingsForm';
 import AdminPricingSettingsForm from '@/components/admin/AdminPricingSettingsForm';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { getCurrentAuthSession } from '@/lib/auth-session';
-import { PricingSettingsError, readLateFineDailyRatePct } from '@/services/pricingSettingsService';
+import {
+  PricingSettingsError,
+  readLateFineDailyRatePct,
+  readMlRetrainSettings,
+} from '@/services/pricingSettingsService';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +16,8 @@ export default async function AdminPengaturanPage() {
     ? { id: session.user.id, role: session.user.role ?? null }
     : null;
 
-  const result = await readLateFineDailyRatePct(user).then(
-    (rate) => ({ rate }),
+  const result = await Promise.all([readLateFineDailyRatePct(user), readMlRetrainSettings(user)]).then(
+    ([rate, mlRetrain]) => ({ rate, mlRetrain }),
     (error: unknown) => ({
       errorMessage:
         error instanceof PricingSettingsError
@@ -30,7 +35,7 @@ export default async function AdminPengaturanPage() {
           <div>
             <h1 className="text-lg font-black text-slate-900 dark:text-white">Pengaturan</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Konfigurasi pricing yang memengaruhi perhitungan denda keterlambatan.
+              Konfigurasi pricing: denda keterlambatan dan ambang retrain continuous learning.
             </p>
           </div>
         </header>
@@ -41,7 +46,10 @@ export default async function AdminPengaturanPage() {
               {result.errorMessage}
             </p>
           ) : (
-            <AdminPricingSettingsForm initialValue={result.rate} />
+            <>
+              <AdminPricingSettingsForm initialValue={result.rate} />
+              <AdminMlRetrainSettingsForm initialSettings={result.mlRetrain} />
+            </>
           )}
         </div>
       </main>

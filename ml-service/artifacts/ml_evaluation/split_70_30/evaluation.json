@@ -33,10 +33,10 @@
     "booking_lead_days"
   ],
   "target": "price_adjustment_pct",
-  "mae": 0.02117458827766882,
+  "mae": 0.02117458827766881,
   "r2": 0.9762964005951851,
-  "maePctPoint": 2.1174588277668818,
+  "maePctPoint": 2.117458827766881,
   "r2Percent": 97.62964005951851,
   "maeDisplayPriceIdr": 12315.418287937744,
-  "generatedAt": "2026-06-10T14:27:34.994258+00:00"
+  "generatedAt": "2026-10-05T05:58:23.204715+00:00"
 }

@@ -100,6 +100,7 @@ const ROUTES = [
   '/api/admin/reports',
   '/api/admin/transactions',
   '/api/admin/ml-model/info',
+  '/api/admin/ml-model/continual',
 ].filter((route) => !ONLY || ONLY.includes(route));
 
 function log(text) {

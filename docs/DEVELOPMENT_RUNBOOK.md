@@ -56,7 +56,7 @@ npm run setup
 
 Perintah ini menjalankan migrasi, seed konfigurasi pricing, dan verifikasi state secara berurutan — dengan ringkasan ✔/✘ dan diagnosis koneksi (ECONNREFUSED, kredensial salah, dsb) bila gagal. Aman dijalankan ulang. Untuk tahap manual per-komponen tetap tersedia: `npm run db:migrate`, `npm run db:seed`, `npm run verify:setup`.
 
-10 migrasi akan dijalankan secara berurutan:
+16 migrasi akan dijalankan secara berurutan:
 - `0000` — Baseline core tables (users, cars, bookings) untuk database baru
 - `0001` — Dynamic Pricing v4 tables
 - `0002` — Snapshot hardening
@@ -67,6 +67,12 @@ Perintah ini menjalankan migrasi, seed konfigurasi pricing, dan verifikasi state
 - `0007` — Admin armada catalog fields (slug, transmission, capacitySeats)
 - `0008` — Demo catalog seed (8 mobil + unit aktif)
 - `0009` — Booking status `EXPIRED`
+- `0010` — Rename plat nomor demo
+- `0011` — Unit armada demo tambahan
+- `0012` — Booking extensions (perpanjangan sewa)
+- `0013` — Booking fines (denda keterlambatan)
+- `0014` — Pricing settings (tarif denda konfigurabel)
+- `0015` — `ml_sample_overrides` (label manual continuous learning)
 
 ### 3.2 Seed Data
 
@@ -201,7 +207,7 @@ npm run build        # Production build check
 npm run verify:setup # Cek hasil db:migrate + db:seed terhadap database aktif
 ```
 
-CI menjalankan job **DB Migrate + Seed** (`.github/workflows/ci.yml`) dengan PostgreSQL 15 throwaway: `npm run setup` dijalankan **dua kali** — run kedua adalah bukti idempotensi — memverifikasi 12 tabel, 17 holiday, dan model aktif, sehingga regresi setup tertangkap otomatis di PR/push. Jika daftar seed berubah, sinkronkan `EXPECTED_HOLIDAY_COUNT` di `scripts/verify-setup.mjs`.
+CI menjalankan job **DB Migrate + Seed** (`.github/workflows/ci.yml`) dengan PostgreSQL 15 throwaway: `npm run setup` dijalankan **dua kali** — run kedua adalah bukti idempotensi — memverifikasi 13 tabel, 17 holiday, tepat satu model aktif, serta baris baseline `rf_adjustment_v4_final`, sehingga regresi setup tertangkap otomatis di PR/push. Jika daftar seed berubah, sinkronkan `EXPECTED_HOLIDAY_COUNT` di `scripts/verify-setup.mjs`.
 
 > Beberapa integration test memerlukan koneksi PostgreSQL aktif (`DATABASE_URL` harus valid).
 
@@ -217,6 +223,27 @@ CI menjalankan job **DB Migrate + Seed** (`.github/workflows/ci.yml`) dengan Pos
 
 Keduanya deterministic (seed `random_state=42`, split group-based per kendaraan): angka evaluasi identik dengan halaman admin Machine Learning, dan model hasil retrain menghasilkan prediksi identik dengan artefak produksi. Setelah `--commit`, restart ml-service agar artefak baru dimuat.
 
+### Continuous Learning (Retrain dari Data Live)
+
+Selain dataset simulasi, model bisa dilatih ulang dari data live (quote nyata) langsung dari halaman **Machine Learning** → panel **Continual Learning**.
+
+Alur:
+
+1. **Capture** — setiap pricing quote menjadi sampel live (8 fitur + prediksi + status). Tidak ada tabel khusus; sumbernya tabel `pricing_quotes`.
+2. **Label** — target `price_adjustment_pct` dihitung otomatis oleh aturan ahli v4 (`ml-service/app/labeler.py`, deterministik, clamp -32%..+52%). Admin bisa menggantinya per quote lewat kolom *Label Manual* (tersimpan di `ml_sample_overrides`).
+3. **Retrain (manual)** — tombol *Retrain Model Sekarang* aktif setelah ≥ 50 sampel live baru sejak retrain terakhir dan ml-service terjangkau. Request `POST /v1/model/retrain` menggabungkan dataset dasar 41.088 baris + sampel live (bobot ×5), memakai hyperparameter terkunci, lalu **guardrail**: MAE test-split tidak boleh memburuk > 10% dan R² tidak boleh turun > 0.02 dari baseline. Lolos → artefak ditulis ke `ml-service/artifacts/versions/<version>/`; gagal → tidak ada artefak dan model tidak berubah. Ambang ini (minimal sampel, batas MAE, batas R²) bisa diubah admin dari **Pengaturan** — tersimpan di tabel `pricing_settings` (key `mlMinLiveSamples`, `mlMaxMaeRegressionPct`, `mlMinR2DropPp`); baris absen/rusak otomatis jatuh ke default konstanta.
+4. **Review + Aktifkan** — versi baru tercatat non-aktif di `pricing_model_versions`. Admin meninjau metrik lalu klik *Aktifkan*: `POST /v1/model/activate` memvalidasi metadata + smoke test lalu menukar model secara atomik dan menulis pointer `ml-service/artifacts/current.json`; setelah sukses, flag `isActive` di database ikut dipindahkan. Setelah aktivasi sukses, ml-service melakukan **auto-prune** `artifacts/versions/`: maksimal 3 direktori versi terbaru dipertahankan (versi aktif tidak pernah dihapus) karena tiap versi ±340MB.
+5. **Rollback** — klik *Aktifkan* pada versi lain (mis. baseline `rf_adjustment_v4_final`). Restart ml-service tetap memuat versi aktif karena membaca pointer `current.json`.
+6. **Sinkronisasi** — panel membandingkan versi aktif di database dengan `model_version` dari `/health` ml-service dan menyediakan tombol *Sinkronkan* bila beda.
+
+Catatan:
+
+- Kontrak target (`price_adjustment_pct`) dan fitur (`v4`) wajib sama; hanya `model_version` yang boleh berubah, sehingga `mlPricingClient` tidak lagi meng-hard-assert versi baseline.
+- `verify:setup` kini mengecek "tepat satu model aktif + baris baseline ada" (bukan mengharuskan baseline aktif), supaya setup tetap hijau setelah admin mengaktifkan versi live.
+- Artefak .pkl tidak ditrack Git (lihat `.gitignore`), jadi versi hasil retrain hanya hidup di mesin lokal.
+- Tab **Evaluasi** di halaman Machine Learning membaca artefak precomputed `ml-service/artifacts/ml_evaluation/` (bukan model aktif). Bila perlu disegarkan: `./.venv-v4/Scripts/python.exe scripts/generate_ml_evaluation_artifacts.py` — seed dikunci, angka metrik material identik antar-run (beda hanya noise floating-point + timestamp `generatedAt`).
+- Halaman **Laporan** menampilkan rekap konversi quote (ACCEPTED vs total quote pada periode terpilih) sebagai kartu *Konversi Quote Dynamic Pricing*.
+
 ---
 
 ## 10. Troubleshooting Umum
@@ -226,5 +253,6 @@ Keduanya deterministic (seed `random_state=42`, split group-based per kendaraan)
 | `DATABASE_URL` error saat test | Set env var sebelum npm run test |
 | ML service 503 | Pastikan FastAPI berjalan di port 8000 |
 | Quote tidak dihitung | Cek `pricing_model_versions` — harus ada baris dengan `isActive = true` |
+| Panel Continual Learning kosong / retrain gagal | Jalankan `npm run db:migrate` (migrasi 0015), pastikan FastAPI berjalan, dan cek folder `ml-service/artifacts/versions/` |
 | Upload bukti gagal | Pastikan direktori `storage/` ada dan writable |
 | Better Auth error | Pastikan `BETTER_AUTH_SECRET` dan `BETTER_AUTH_URL` terisi |
