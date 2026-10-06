@@ -68,6 +68,10 @@ BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=replace-with-secure-secret
 ML_SERVICE_BASE_URL=http://127.0.0.1:8000
 
+# Opsional: origin tambahan untuk Better Auth (dipisah koma).
+# Origin localhost port berapa pun otomatis dipercaya saat development.
+AUTH_TRUSTED_ORIGINS=
+
 # Opsional: jika keduanya diset, `npm run setup` otomatis membuat akun admin
 # (password minimal 8 karakter). Lihat langkah 7.
 ADMIN_EMAIL=admin@example.com

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import Swal from 'sweetalert2';
 import { authClient } from '@/lib/auth-client';
 import { signOutCurrentUser } from '@/lib/auth-ui';
 
@@ -25,6 +26,13 @@ export default function Navbar() {
       await signOutCurrentUser(authClient);
       router.push('/');
       router.refresh();
+    } catch (error) {
+      console.error('Logout gagal:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Logout gagal',
+        text: 'Silakan coba lagi.',
+      });
     } finally {
       setIsSigningOut(false);
     }

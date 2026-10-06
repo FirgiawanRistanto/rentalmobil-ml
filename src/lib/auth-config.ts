@@ -13,13 +13,30 @@ const KNOWN_INSECURE_SECRETS = new Set([
   'better-auth-secret-12345678901234567890',
 ]);
 
+const DEVELOPMENT_TRUSTED_ORIGINS = ['http://localhost:*', 'http://127.0.0.1:*'];
+
+function parseTrustedOrigins(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export interface BetterAuthEnvironment {
   baseURL: string;
   secret: string;
+  trustedOrigins: string[];
 }
 
 export type BetterAuthEnvironmentVariables = Partial<
-  Record<'BETTER_AUTH_URL' | 'BETTER_AUTH_SECRET' | 'AUTH_SECRET', string | undefined>
+  Record<
+    | 'BETTER_AUTH_URL'
+    | 'BETTER_AUTH_SECRET'
+    | 'AUTH_SECRET'
+    | 'AUTH_TRUSTED_ORIGINS'
+    | 'NODE_ENV',
+    string | undefined
+  >
 >;
 
 export function resolveBetterAuthEnvironment(
@@ -45,8 +62,14 @@ export function resolveBetterAuthEnvironment(
     throw new Error('BETTER_AUTH_SECRET must be at least 32 characters long.');
   }
 
+  const trustedOrigins = [
+    ...(source.NODE_ENV === 'development' ? DEVELOPMENT_TRUSTED_ORIGINS : []),
+    ...parseTrustedOrigins(source.AUTH_TRUSTED_ORIGINS),
+  ];
+
   return {
     baseURL,
     secret,
+    trustedOrigins,
   };
 }

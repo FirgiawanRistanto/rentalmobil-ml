@@ -674,6 +674,13 @@ export default function UserDashboard() {
       await signOutCurrentUser(authClient);
       router.push('/');
       router.refresh();
+    } catch (error) {
+      console.error('Logout gagal:', error);
+      await Swal.fire({
+        icon: 'error',
+        title: 'Logout gagal',
+        text: 'Silakan coba lagi.',
+      });
     } finally {
       setIsSigningOut(false);
     }

@@ -34,6 +34,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/rentalmobil
 BETTER_AUTH_SECRET=<random-string-32-chars>
 BETTER_AUTH_URL=http://localhost:3000
 
+# Opsional: origin tambahan yang diizinkan Better Auth (dipisah koma).
+# Mode development otomatis mempercayai http://localhost:* dan http://127.0.0.1:*,
+# jadi dev server di port berapa pun (3000/3001/…) tetap bisa login & logout.
+AUTH_TRUSTED_ORIGINS=
+
 # ML Service
 ML_SERVICE_URL=http://localhost:8000
 
@@ -256,3 +261,4 @@ Catatan:
 | Panel Continual Learning kosong / retrain gagal | Jalankan `npm run db:migrate` (migrasi 0015), pastikan FastAPI berjalan, dan cek folder `ml-service/artifacts/versions/` |
 | Upload bukti gagal | Pastikan direktori `storage/` ada dan writable |
 | Better Auth error | Pastikan `BETTER_AUTH_SECRET` dan `BETTER_AUTH_URL` terisi |
+| `Invalid origin` (403) saat login/logout | Origin tidak ada di `trustedOrigins`. Di dev localhost otomatis dipercaya; untuk origin lain set `AUTH_TRUSTED_ORIGINS` (dipisah koma) di `.env` |

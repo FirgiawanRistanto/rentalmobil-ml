@@ -10,6 +10,7 @@ export const auth = betterAuth({
   appName: "Rental Mobil XYZ",
   baseURL: authEnv.baseURL,
   secret: authEnv.secret,
+  trustedOrigins: authEnv.trustedOrigins,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {

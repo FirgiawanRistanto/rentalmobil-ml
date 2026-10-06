@@ -57,4 +57,39 @@ describe('Better Auth configuration foundation', () => {
       /at least 32 characters/,
     );
   });
+
+  it('trusts any loopback origin in development so dev-server ports other than BETTER_AUTH_URL keep working', () => {
+    const resolved = resolveBetterAuthEnvironment({
+      BETTER_AUTH_URL: 'http://localhost:3000',
+      BETTER_AUTH_SECRET: 'a'.repeat(40),
+      NODE_ENV: 'development',
+    });
+
+    assert.deepEqual(resolved.trustedOrigins, [
+      'http://localhost:*',
+      'http://127.0.0.1:*',
+    ]);
+  });
+
+  it('keeps production origins strict unless AUTH_TRUSTED_ORIGINS is configured', () => {
+    const strict = resolveBetterAuthEnvironment({
+      BETTER_AUTH_URL: 'https://rental.example.com',
+      BETTER_AUTH_SECRET: 'a'.repeat(40),
+      NODE_ENV: 'production',
+    });
+
+    assert.deepEqual(strict.trustedOrigins, []);
+
+    const withExtras = resolveBetterAuthEnvironment({
+      BETTER_AUTH_URL: 'https://rental.example.com',
+      BETTER_AUTH_SECRET: 'a'.repeat(40),
+      NODE_ENV: 'production',
+      AUTH_TRUSTED_ORIGINS: 'https://app.example.com, http://localhost:3001 ,',
+    });
+
+    assert.deepEqual(withExtras.trustedOrigins, [
+      'https://app.example.com',
+      'http://localhost:3001',
+    ]);
+  });
 });
