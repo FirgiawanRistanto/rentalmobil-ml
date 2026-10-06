@@ -5,12 +5,12 @@ import { useEffect, useState } from 'react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import {
   getAdminBookingStatusLabel,
-  getAdminPaymentDetailRoute,
   getAdminPaymentsRoute,
   getAdminStatusBadgeClass,
   shortId,
   type AdminDashboardResponse,
 } from '@/lib/adminDashboardUi';
+import { buildAdminTransactionDetailPath } from '@/lib/adminTransactionUi';
 import {
   formatDateTimeId,
   formatRupiahId,
@@ -230,7 +230,7 @@ export default function AdminDashboardPage() {
                               <td className="px-5 py-4 text-right">
                                 <Link
                                   className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
-                                  href={getAdminPaymentDetailRoute(payment.paymentId)}
+                                  href={buildAdminTransactionDetailPath(payment.bookingId)}
                                 >
                                   Detail
                                   <span className="material-symbols-outlined text-base">visibility</span>

@@ -30,6 +30,13 @@ describe('admin dashboard UI helpers', () => {
     assert.equal(getAdminBookingStatusLabel('CANCELLED', 'EXPIRED'), 'Kedaluwarsa');
   });
 
+  it('links payment rows straight to the transaction detail page', () => {
+    const source = readFileSync('src/app/admin/page.tsx', 'utf8');
+
+    assert.match(source, /buildAdminTransactionDetailPath\(payment\.bookingId\)/);
+    assert.equal(source.includes('getAdminPaymentDetailRoute'), false);
+  });
+
   it('keeps the active admin dashboard away from dummy values and legacy routes', () => {
     const source = readFileSync('src/app/admin/page.tsx', 'utf8');
 
