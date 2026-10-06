@@ -47,6 +47,15 @@ describe('admin transaksi page source', () => {
     assert.match(page, /SortHeader/);
   });
 
+  it('shows a pending extension badge so admins notice extension requests', () => {
+    const page = readFileSync('src/app/admin/transaksi/page.tsx', 'utf8');
+
+    assert.match(page, /isPendingBookingExtensionStatus/);
+    assert.match(page, /getBookingExtensionBadgeClass/);
+    assert.match(page, /getBookingExtensionStatusLabel/);
+    assert.match(page, /Perpanjangan:/);
+  });
+
   it('keeps the main transaction table compact', () => {
     const page = readFileSync('src/app/admin/transaksi/page.tsx', 'utf8');
 

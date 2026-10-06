@@ -15,6 +15,11 @@ import {
   type AdminTransactionsQuery,
 } from '@/lib/adminTransactionUi';
 import { getCurrentAuthSession } from '@/lib/auth-session';
+import {
+  getBookingExtensionBadgeClass,
+  getBookingExtensionStatusLabel,
+  isPendingBookingExtensionStatus,
+} from '@/lib/bookingExtensionUi';
 import { PaymentServiceError } from '@/services/paymentService';
 import {
   AdminTransactionsServiceError,
@@ -225,6 +230,11 @@ export default async function AdminTransaksiPage({ searchParams }: AdminTransaks
                         <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${getAdminTransactionStatusBadgeClass(transaction.displayStatus)}`}>
                           {getAdminTransactionStatusLabel(transaction.displayStatus)}
                         </span>
+                        {isPendingBookingExtensionStatus(transaction.extensionStatus) && (
+                          <span className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${getBookingExtensionBadgeClass(transaction.extensionStatus)}`}>
+                            Perpanjangan: {getBookingExtensionStatusLabel(transaction.extensionStatus)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end">

@@ -57,6 +57,20 @@ export function getBookingExtensionBadgeClass(status: BookingExtensionStatus | s
   }
 }
 
+const PENDING_BOOKING_EXTENSION_STATUSES = ['AWAITING_PAYMENT', 'SUBMITTED'] as const;
+
+export type PendingBookingExtensionStatus = (typeof PENDING_BOOKING_EXTENSION_STATUSES)[number];
+
+/**
+ * Status perpanjangan yang masih perlu ditindaklanjuti: diajukan customer
+ * (menunggu pembayaran) atau bukti sudah diupload (menunggu verifikasi admin).
+ */
+export function isPendingBookingExtensionStatus(
+  status: BookingExtensionStatus | string | null | undefined,
+): status is PendingBookingExtensionStatus {
+  return PENDING_BOOKING_EXTENSION_STATUSES.includes(status as PendingBookingExtensionStatus);
+}
+
 export function getBookingExtensionErrorMessage(code: string): string {
   switch (code) {
     case 'AUTHENTICATION_REQUIRED':

@@ -13,6 +13,10 @@ import {
   type AdminTransactionsResponse,
 } from '../lib/adminTransactionUi';
 import { computeLateReturnFine, LATE_FINE_DAILY_RATE_PCT } from '../lib/bookingFineUi';
+import {
+  BOOKING_EXTENSION_STATUSES,
+  type BookingExtensionStatus,
+} from '../lib/bookingExtensionUi';
 import { LATE_FINE_RATE_SETTING_KEY, isValidLateFineRatePct } from '../lib/pricingSettingsUi';
 import { type BookingStatus, type PaymentStatus, type TripType } from '../lib/paymentUi';
 import {
@@ -69,6 +73,7 @@ interface AdminTransactionRow {
   paymentReviewExpiresAt: Date | string | null;
   paymentReviewedAt: Date | string | null;
   paymentRejectionReason: string | null;
+  extensionStatus: string | null;
 }
 
 interface AdminBookingStatusRow {
@@ -335,7 +340,14 @@ function createDefaultRepository(): AdminTransactionsRepository {
         p."submittedAt" as "paymentSubmittedAt",
         p."reviewExpiresAt" as "paymentReviewExpiresAt",
         p."reviewedAt" as "paymentReviewedAt",
-        p."rejectionReason" as "paymentRejectionReason"
+        p."rejectionReason" as "paymentRejectionReason",
+        (
+          select be."status"
+          from booking_extensions be
+          where be."bookingId" = b.id
+          order by be."createdAt" desc
+          limit 1
+        ) as "extensionStatus"
       ${baseFromSql}
       ${whereSql}
       order by ${orderSql}
@@ -495,6 +507,12 @@ function createDefaultRepository(): AdminTransactionsRepository {
   };
 }
 
+function normalizeExtensionStatus(value: string | null): BookingExtensionStatus | null {
+  return BOOKING_EXTENSION_STATUSES.includes(value as BookingExtensionStatus)
+    ? (value as BookingExtensionStatus)
+    : null;
+}
+
 function mapTransactionRow(row: AdminTransactionRow, referenceTime: Date): AdminTransactionListItem {
   const createdAt = requireDatabaseDate(row.createdAt);
   const reservationExpiresAt = normalizeDatabaseDate(row.reservationExpiresAt);
@@ -517,6 +535,7 @@ function mapTransactionRow(row: AdminTransactionRow, referenceTime: Date): Admin
     bookingCode: buildAdminTransactionCode(row.bookingId),
     bookingStatus: row.bookingStatus,
     displayStatus,
+    extensionStatus: normalizeExtensionStatus(row.extensionStatus),
     createdAt: createdAt.toISOString(),
     reservationExpiresAt: reservationExpiresAt?.toISOString() ?? null,
     customer: {

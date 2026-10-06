@@ -48,6 +48,7 @@ function row(overrides: Record<string, unknown> = {}) {
     paymentReviewExpiresAt: null,
     paymentReviewedAt: null,
     paymentRejectionReason: null,
+    extensionStatus: null,
     ...overrides,
   };
 }
@@ -122,6 +123,25 @@ describe('admin transactions service', () => {
     assert.equal(result.items[0].actions.detailPath.startsWith('/admin/transaksi/'), true);
     assert.equal(result.items[0].actions.paymentReviewPath, null);
     assert.equal(repo.expiredWith?.toISOString(), now.toISOString());
+  });
+
+  it('exposes the latest booking extension status for admin follow-up badges', async () => {
+    const cases: Array<[unknown, string | null]> = [
+      ['SUBMITTED', 'SUBMITTED'],
+      ['AWAITING_PAYMENT', 'AWAITING_PAYMENT'],
+      [undefined, null],
+      ['NOT_A_STATUS', null],
+    ];
+
+    for (const [rawStatus, expected] of cases) {
+      const overrides = rawStatus === undefined ? {} : { extensionStatus: rawStatus };
+      const result = await listAdminTransactions(admin, {
+        repository: typedRepository([row(overrides)]),
+        now: () => now,
+      });
+
+      assert.equal(result.items[0].extensionStatus, expected);
+    }
   });
 
   it('passes server-side pagination, search, filter, and safe sort query to repository', async () => {
