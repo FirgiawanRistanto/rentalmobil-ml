@@ -37,6 +37,7 @@ const FILTERS: Array<{ value: AdminTransactionStatusFilter; label: string }> = [
   { value: 'expired', label: 'Kedaluwarsa' },
   { value: 'completed', label: 'Selesai' },
   { value: 'cancelled', label: 'Dibatalkan' },
+  { value: 'extension', label: 'Perpanjangan' },
 ];
 
 function buildPeriodLabel(transaction: AdminTransactionListItem): string {
@@ -231,9 +232,13 @@ export default async function AdminTransaksiPage({ searchParams }: AdminTransaks
                           {getAdminTransactionStatusLabel(transaction.displayStatus)}
                         </span>
                         {isPendingBookingExtensionStatus(transaction.extensionStatus) && (
-                          <span className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black ${getBookingExtensionBadgeClass(transaction.extensionStatus)}`}>
+                          <Link
+                            className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black transition hover:opacity-75 ${getBookingExtensionBadgeClass(transaction.extensionStatus)}`}
+                            href={transaction.actions.detailPath}
+                            title="Buka detail transaksi untuk memproses perpanjangan"
+                          >
                             Perpanjangan: {getBookingExtensionStatusLabel(transaction.extensionStatus)}
-                          </span>
+                          </Link>
                         )}
                       </td>
                       <td className="px-5 py-4">

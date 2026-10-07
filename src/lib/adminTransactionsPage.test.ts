@@ -40,9 +40,11 @@ describe('admin transaksi page source', () => {
   it('renders the final transaction filter tabs', () => {
     const page = readFileSync('src/app/admin/transaksi/page.tsx', 'utf8');
 
-    for (const label of ['Semua', 'Belum Bayar', 'Menunggu Verifikasi', 'Terverifikasi', 'Ditolak', 'Kedaluwarsa', 'Selesai', 'Dibatalkan']) {
+    for (const label of ['Semua', 'Belum Bayar', 'Menunggu Verifikasi', 'Terverifikasi', 'Ditolak', 'Kedaluwarsa', 'Selesai', 'Dibatalkan', 'Perpanjangan']) {
       assert.match(page, new RegExp(label));
     }
+    // Chip "Perpanjangan" wajib memakai nilai filter 'extension' yang tervalidasi.
+    assert.match(page, /\{ value: 'extension', label: 'Perpanjangan' \}/);
     assert.match(page, /pageSize/);
     assert.match(page, /SortHeader/);
   });
@@ -54,6 +56,11 @@ describe('admin transaksi page source', () => {
     assert.match(page, /getBookingExtensionBadgeClass/);
     assert.match(page, /getBookingExtensionStatusLabel/);
     assert.match(page, /Perpanjangan:/);
+    // Badge perpanjangan wajib berupa link langsung ke detail transaksi.
+    assert.match(
+      page,
+      /isPendingBookingExtensionStatus\(transaction\.extensionStatus\) && \(\s*<Link\b[^>]*href=\{transaction\.actions\.detailPath\}/,
+    );
   });
 
   it('keeps the main transaction table compact', () => {

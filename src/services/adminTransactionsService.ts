@@ -264,6 +264,18 @@ function buildStatusSql(query: AdminTransactionsQuery, now: Date) {
       return sql`and b.status = 'COMPLETED'`;
     case 'cancelled':
       return sql`and b.status = 'CANCELLED' and (p.status is null or p.status not in ('REJECTED', 'EXPIRED'))`;
+    case 'extension':
+      // Perpanjangan yang masih perlu ditindaklanjuti (status perpanjangan terakhir),
+      // konsisten dengan badge "Perpanjangan:" di tabel.
+      return sql`
+        and (
+          select be.status
+          from booking_extensions be
+          where be."bookingId" = b.id
+          order by be."createdAt" desc
+          limit 1
+        ) in ('AWAITING_PAYMENT', 'SUBMITTED')
+      `;
     case 'all':
       return sql``;
   }

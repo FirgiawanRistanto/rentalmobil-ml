@@ -169,6 +169,23 @@ describe('admin transactions service', () => {
     });
   });
 
+  it('filters transactions by pending booking extension follow-ups', async () => {
+    const repo = repository([row()]);
+    await listAdminTransactions(admin, {
+      repository: repo as never,
+      now: () => now,
+      query: { status: 'extension' },
+    });
+
+    assert.equal((repo.receivedQuery as { status: string }).status, 'extension');
+
+    const source = readFileSync('src/services/adminTransactionsService.ts', 'utf8');
+    assert.match(source, /case 'extension':/);
+    // Filter wajib pakai status perpanjangan terakhir supaya sama dengan badge tabel.
+    assert.match(source, /select be\.status\s+from booking_extensions be/);
+    assert.match(source, /in \('AWAITING_PAYMENT', 'SUBMITTED'\)/);
+  });
+
   it('falls back to safe sort and order values for invalid query input', async () => {
     const repo = repository([row()]);
     await listAdminTransactions(admin, {

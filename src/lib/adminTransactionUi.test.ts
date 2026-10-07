@@ -81,6 +81,12 @@ describe('admin transaction UI mapping', () => {
     assert.equal(fallback.sort, 'createdAt');
     assert.equal(fallback.order, 'desc');
     assert.equal(fallback.pageSize, 50);
+
+    const extension = parseAdminTransactionsSearchParams(new URLSearchParams({ status: 'extension' }));
+    assert.equal(extension.status, 'extension');
+
+    const unknownStatus = parseAdminTransactionsSearchParams(new URLSearchParams({ status: 'not-a-filter' }));
+    assert.equal(unknownStatus.status, 'all');
   });
 
   it('builds list path from query params without legacy payment route', () => {

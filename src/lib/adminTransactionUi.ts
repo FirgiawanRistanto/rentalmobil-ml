@@ -30,7 +30,8 @@ export type AdminTransactionStatusFilter =
   | 'rejected'
   | 'expired'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'extension';
 export type AdminTransactionSort = 'createdAt' | 'startDate' | 'totalInvoice' | 'customerName' | 'carName';
 export type AdminTransactionOrder = 'asc' | 'desc';
 
@@ -152,6 +153,7 @@ const ADMIN_TRANSACTION_STATUS_FILTERS = new Set<AdminTransactionStatusFilter>([
   'expired',
   'completed',
   'cancelled',
+  'extension',
 ]);
 
 const ADMIN_TRANSACTION_SORTS = new Set<AdminTransactionSort>([
