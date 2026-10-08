@@ -25,6 +25,8 @@ export interface BookingFineSummary {
   lateDays: number;
   finePerDay: number;
   fineAmount: number;
+  /** Kapan nominal denda masuk ke total tagihan booking; null = tidak (lagi) masuk tagihan. */
+  invoiceAppliedAt: string | null;
   rejectionReason: string | null;
   submittedAt: string | null;
   reviewedAt: string | null;

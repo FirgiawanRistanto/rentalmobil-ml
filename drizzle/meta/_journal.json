@@ -113,6 +113,13 @@
       "when": 1736899200000,
       "tag": "0015_ml_sample_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1736985600000,
+      "tag": "0016_booking_fine_invoice_applied",
+      "breakpoints": true
     }
   ]
 }

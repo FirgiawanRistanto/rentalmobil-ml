@@ -514,14 +514,18 @@ function FinePanel({ booking }: { booking: CustomerDashboardBooking }) {
 
       {fine.status === 'SUBMITTED' ? (
         <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-          Bukti sudah dikirim — menunggu verifikasi admin.
+          Bukti sudah dikirim — menunggu verifikasi admin. Verifikasi hanya mengonfirmasi
+          pembayaran; dendanya sudah masuk total tagihan booking ini.
         </p>
       ) : null}
 
       {fine.status === 'AWAITING_PAYMENT' ? (
         <div className="mt-3 space-y-3">
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Transfer denda di atas ke rekening Rental Mobil XYZ, lalu upload bukti pembayarannya.
+            {fine.invoiceAppliedAt
+              ? `Denda ${formatRupiahId(fine.fineAmount)} sudah masuk ke total tagihan booking ini.`
+              : `Denda ${formatRupiahId(fine.fineAmount)} belum dibebankan ke tagihan booking ini.`}{' '}
+            Transfer ke rekening Rental Mobil XYZ, lalu upload bukti pembayarannya.
           </p>
           <input
             accept="image/*,application/pdf"

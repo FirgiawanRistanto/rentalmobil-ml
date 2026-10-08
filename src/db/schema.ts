@@ -232,6 +232,8 @@ export const bookingFines = pgTable('booking_fines', {
   finePerDay: integer('finePerDay').notNull(),
   fineAmount: integer('fineAmount').notNull(),
   status: bookingFineStatusEnum('status').default('AWAITING_PAYMENT').notNull(),
+  /** Waktu nominal denda dibebankan ke invoice booking; null = tidak (lagi) masuk tagihan. */
+  invoiceAppliedAt: timestamp('invoiceAppliedAt', { mode: 'date' }),
   proofStorageKey: text('proofStorageKey'),
   proofOriginalName: text('proofOriginalName'),
   proofMimeType: text('proofMimeType'),

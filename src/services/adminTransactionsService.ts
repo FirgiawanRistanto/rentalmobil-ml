@@ -488,10 +488,13 @@ function createDefaultRepository(): AdminTransactionsRepository {
               return;
             }
 
+            // Denda langsung dibebankan ke invoice saat barisnya dibuat: customer
+            // melihat tagihan penuh tanpa menunggu aksi admin, dan verifikasi admin
+            // hanya mengonfirmasi pembayaran (tidak menambah tagihan dua kali).
             await tx.execute(sql`
               insert into booking_fines (
                 "bookingId", "originalEndDate", "actualReturnDate", "lateDays",
-                "finePerDay", "fineAmount", status
+                "finePerDay", "fineAmount", status, "invoiceAppliedAt"
               ) values (
                 ${bookingId}::uuid,
                 ${toDateOnlyString(endDate)}::timestamp,
@@ -499,8 +502,21 @@ function createDefaultRepository(): AdminTransactionsRepository {
                 ${fine.lateDays},
                 ${fine.finePerDay},
                 ${fine.fineAmount},
-                'AWAITING_PAYMENT'
+                'AWAITING_PAYMENT',
+                now()
               )
+            `);
+
+            await tx.execute(sql`
+              update bookings
+              set "totalPrice" = "totalPrice" + ${fine.fineAmount}, "updatedAt" = now()
+              where id = ${bookingId}::uuid
+            `);
+
+            await tx.execute(sql`
+              update booking_price_snapshots
+              set "totalInvoiceDisplay" = "totalInvoiceDisplay" + ${fine.fineAmount}
+              where "bookingId" = ${bookingId}::uuid
             `);
           },
         };

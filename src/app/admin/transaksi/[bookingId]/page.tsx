@@ -232,7 +232,16 @@ function ExtensionReviewSection({ bookingId }: { bookingId: string }) {
     </section>
   );
 }
-function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefresh: () => Promise<void> }) {
+function FineReviewSection({
+  bookingId,
+  refreshToken,
+  onRefresh,
+}: {
+  bookingId: string;
+  /** Berubah saat data transaksi dimuat ulang — denda baru muncul tanpa reload manual. */
+  refreshToken?: string | null;
+  onRefresh: () => Promise<void>;
+}) {
   const [fine, setFine] = useState<BookingFineSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -264,7 +273,7 @@ function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefr
     return () => {
       isMounted = false;
     };
-  }, [bookingId]);
+  }, [bookingId, refreshToken]);
 
   async function handleVerify() {
     if (isReviewing) {
@@ -272,11 +281,11 @@ function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefr
     }
 
     const result = await Swal.fire({
-      title: 'Terapkan denda?',
-      text: 'Total invoice booking akan bertambah sesuai denda keterlambatan.',
+      title: 'Verifikasi pembayaran denda?',
+      text: 'Denda sudah masuk tagihan booking sejak dibuat; verifikasi menandai pembayarannya lunas.',
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Verifikasi & Terapkan',
+      confirmButtonText: 'Verifikasi Pembayaran',
       cancelButtonText: 'Batal',
       confirmButtonColor: '#059669',
     });
@@ -305,7 +314,7 @@ function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefr
 
     const result = await Swal.fire({
       title: fine?.status === 'AWAITING_PAYMENT' ? 'Batalkan denda?' : 'Tolak denda?',
-      text: 'Denda dibatalkan dan tidak dibebankan ke tagihan customer.',
+      text: 'Denda dibatalkan dan nominalnya dikembalikan dari total tagihan booking.',
       icon: 'warning',
       input: 'textarea',
       inputLabel: 'Alasan (opsional)',
@@ -362,6 +371,10 @@ function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefr
         <Row label="Hari telat" value={`${fine.lateDays} hari`} />
         <Row label="Denda / hari" value={formatRupiahId(fine.finePerDay)} />
         <Row label="Total denda" value={formatRupiahId(fine.fineAmount)} />
+        <Row
+          label="Masuk tagihan"
+          value={fine.invoiceAppliedAt ? formatDateTimeId(fine.invoiceAppliedAt) : 'Belum dibebankan'}
+        />
         <Row label="Diajukan pada" value={fine.submittedAt ? formatDateTimeId(fine.submittedAt) : '-'} />
         <Row label="Direview pada" value={fine.reviewedAt ? formatDateTimeId(fine.reviewedAt) : '-'} />
         <Row label="Alasan" value={fine.rejectionReason || '-'} />
@@ -386,7 +399,7 @@ function FineReviewSection({ bookingId, onRefresh }: { bookingId: string; onRefr
             onClick={() => void handleVerify()}
             type="button"
           >
-            {isReviewing ? 'Memproses...' : 'Verifikasi & Terapkan'}
+            {isReviewing ? 'Memproses...' : 'Verifikasi Pembayaran'}
           </button>
           <button
             className="rounded-xl border border-red-200 px-4 py-2 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/20"
@@ -583,7 +596,7 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
         const updatePreview = () => {
           const fine = computeLateReturnFine(dailyRate, dueReturnDate, input.value || defaultDate, lateFineRatePct);
           if (fine.lateDays > 0) {
-            preview.textContent = 'Telat ' + fine.lateDays + ' hari — denda ' + formatRupiahId(fine.fineAmount) + ' (' + formatRupiahId(fine.finePerDay) + ' x ' + fine.lateDays + ' hari, ' + lateFineRatePct + '% tarif harian)';
+            preview.textContent = 'Telat ' + fine.lateDays + ' hari — denda ' + formatRupiahId(fine.fineAmount) + ' (' + formatRupiahId(fine.finePerDay) + ' x ' + fine.lateDays + ' hari, ' + lateFineRatePct + '% tarif harian) langsung masuk tagihan booking.';
             preview.className = 'mt-2 text-sm font-semibold text-red-600';
           } else {
             preview.textContent = 'Tepat waktu — tanpa denda.';
@@ -796,6 +809,7 @@ export default function AdminTransactionDetailPage({ params }: AdminTransactionD
                 <FineReviewSection
                   bookingId={transaction.bookingId}
                   onRefresh={() => loadTransaction(transaction.bookingId)}
+                  refreshToken={transaction.bookingStatus}
                 />
               </div>
             </>

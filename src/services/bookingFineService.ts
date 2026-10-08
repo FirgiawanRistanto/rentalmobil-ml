@@ -130,6 +130,7 @@ function mapFineRow(row: typeof bookingFines.$inferSelect): BookingFineSummary {
     lateDays: row.lateDays,
     finePerDay: row.finePerDay,
     fineAmount: row.fineAmount,
+    invoiceAppliedAt: row.invoiceAppliedAt ? row.invoiceAppliedAt.toISOString() : null,
     rejectionReason: row.rejectionReason,
     submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
     reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
@@ -215,9 +216,10 @@ export async function submitBookingFineProof(
 }
 
 /**
- * Verifikasi admin: tagihan denda diterapkan — totalPrice booking dan
- * snapshot invoice booking bertambah dalam satu transaksi (sama seperti
- * perpanjangan, invoice hanya naik setelah bukti dibayar & diverifikasi).
+ * Verifikasi admin = konfirmasi bahwa pembayaran denda sudah diterima.
+ * Nominal denda sudah masuk invoice sejak barisnya dibuat, jadi verifikasi
+ * tidak menambah tagihan lagi; hanya denda lama (dibuat sebelum kolom
+ * "invoiceAppliedAt" ada) yang masih perlu dibebankan di sini.
  */
 export async function verifyBookingFine(
   bookingIdRaw: string,
@@ -241,31 +243,34 @@ export async function verifyBookingFine(
       throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Denda tidak berstatus SUBMITTED.');
     }
 
-    const [updatedBooking] = await tx
-      .update(bookings)
-      .set({
-        totalPrice: sql`${bookings.totalPrice} + ${fine.fineAmount}`,
-        updatedAt: reviewedAt,
-      })
-      .where(and(
-        eq(bookings.id, bookingId),
-        eq(bookings.status, 'COMPLETED'),
-      ))
-      .returning({ id: bookings.id });
+    if (!fine.invoiceAppliedAt) {
+      const [updatedBooking] = await tx
+        .update(bookings)
+        .set({
+          totalPrice: sql`${bookings.totalPrice} + ${fine.fineAmount}`,
+          updatedAt: reviewedAt,
+        })
+        .where(and(
+          eq(bookings.id, bookingId),
+          eq(bookings.status, 'COMPLETED'),
+        ))
+        .returning({ id: bookings.id });
 
-    if (!updatedBooking) {
-      throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Booking sudah tidak COMPLETED — denda tidak dapat diterapkan.');
+      if (!updatedBooking) {
+        throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Booking sudah tidak COMPLETED — denda tidak dapat diterapkan.');
+      }
+
+      await tx
+        .update(bookingPriceSnapshots)
+        .set({ totalInvoiceDisplay: sql`${bookingPriceSnapshots.totalInvoiceDisplay} + ${fine.fineAmount}` })
+        .where(eq(bookingPriceSnapshots.bookingId, bookingId));
     }
-
-    await tx
-      .update(bookingPriceSnapshots)
-      .set({ totalInvoiceDisplay: sql`${bookingPriceSnapshots.totalInvoiceDisplay} + ${fine.fineAmount}` })
-      .where(eq(bookingPriceSnapshots.bookingId, bookingId));
 
     const [updatedFine] = await tx
       .update(bookingFines)
       .set({
         status: 'VERIFIED',
+        invoiceAppliedAt: sql`coalesce(${bookingFines.invoiceAppliedAt}, ${reviewedAt})`,
         reviewedAt,
         reviewedByUserId: actor.id,
         updatedAt: reviewedAt,
@@ -284,9 +289,27 @@ export async function verifyBookingFine(
   });
 }
 
+function parseRejectionReason(rawReason: unknown): string | null {
+  if (rawReason === undefined || rawReason === null) {
+    return null;
+  }
+
+  if (typeof rawReason !== 'string') {
+    throw new BookingFineError('INVALID_FINE_REQUEST', 'rejectionReason harus berupa teks.');
+  }
+
+  const trimmed = rawReason.trim();
+  if (trimmed.length > REJECTION_REASON_MAX_LENGTH) {
+    throw new BookingFineError('INVALID_FINE_REQUEST', 'rejectionReason maksimal ' + REJECTION_REASON_MAX_LENGTH + ' karakter.');
+  }
+
+  return trimmed || null;
+}
+
 /**
  * Tolak/batalkan denda — dari SUBMITTED (bukti ditolak) maupun
- * AWAITING_PAYMENT (denda dibatalkan sebelum dibayar). Tanpa tagihan.
+ * AWAITING_PAYMENT (denda dibatalkan sebelum dibayar). Nominal denda yang
+ * sudah masuk invoice dikembalikan dari tagihan booking dalam satu transaksi.
  */
 export async function rejectBookingFine(
   bookingIdRaw: string,
@@ -296,43 +319,63 @@ export async function rejectBookingFine(
   const actor = assertAdminActor(user);
   const bookingId = assertBookingId(bookingIdRaw);
   const reviewedAt = new Date();
+  const rejectionReason = parseRejectionReason(rawReason);
 
-  let rejectionReason: string | null = null;
-  if (rawReason !== undefined && rawReason !== null) {
-    if (typeof rawReason !== 'string') {
-      throw new BookingFineError('INVALID_FINE_REQUEST', 'rejectionReason harus berupa teks.');
-    }
-    const trimmed = rawReason.trim();
-    if (trimmed.length > REJECTION_REASON_MAX_LENGTH) {
-      throw new BookingFineError('INVALID_FINE_REQUEST', 'rejectionReason maksimal ' + REJECTION_REASON_MAX_LENGTH + ' karakter.');
-    }
-    rejectionReason = trimmed || null;
-  }
+  return db.transaction(async (tx) => {
+    const [fine] = await tx
+      .select()
+      .from(bookingFines)
+      .where(eq(bookingFines.bookingId, bookingId))
+      .limit(1);
 
-  const [row] = await db
-    .update(bookingFines)
-    .set({
-      status: 'REJECTED',
-      rejectionReason,
-      reviewedAt,
-      reviewedByUserId: actor.id,
-      updatedAt: reviewedAt,
-    })
-    .where(and(
-      eq(bookingFines.bookingId, bookingId),
-      inArray(bookingFines.status, [...REJECTABLE_FINE_STATUSES]),
-    ))
-    .returning();
-
-  if (!row) {
-    const fine = await loadBookingFine(bookingId);
     if (!fine) {
       throw new BookingFineError('FINE_NOT_FOUND', 'Denda keterlambatan tidak ditemukan.');
     }
-    throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Denda tidak dapat ditolak dari status saat ini.');
-  }
 
-  return mapFineRow(row);
+    if (!REJECTABLE_FINE_STATUSES.includes(fine.status as (typeof REJECTABLE_FINE_STATUSES)[number])) {
+      throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Denda tidak dapat ditolak dari status saat ini.');
+    }
+
+    // Tagihan hanya dikembalikan kalau nominal denda memang sedang masuk invoice.
+    if (fine.invoiceAppliedAt) {
+      await tx
+        .update(bookings)
+        .set({
+          totalPrice: sql`greatest(0, ${bookings.totalPrice} - ${fine.fineAmount})`,
+          updatedAt: reviewedAt,
+        })
+        .where(eq(bookings.id, bookingId));
+
+      await tx
+        .update(bookingPriceSnapshots)
+        .set({
+          totalInvoiceDisplay: sql`greatest(0, ${bookingPriceSnapshots.totalInvoiceDisplay} - ${fine.fineAmount})`,
+        })
+        .where(eq(bookingPriceSnapshots.bookingId, bookingId));
+    }
+
+    const [row] = await tx
+      .update(bookingFines)
+      .set({
+        status: 'REJECTED',
+        invoiceAppliedAt: null,
+        rejectionReason,
+        reviewedAt,
+        reviewedByUserId: actor.id,
+        updatedAt: reviewedAt,
+      })
+      .where(and(
+        eq(bookingFines.id, fine.id),
+        inArray(bookingFines.status, [...REJECTABLE_FINE_STATUSES]),
+      ))
+      .returning();
+
+    if (!row) {
+      throw new BookingFineError('FINE_NOT_REVIEWABLE', 'Denda tidak dapat ditolak dari status saat ini.');
+    }
+
+    return mapFineRow(row);
+  });
 }
 
 export interface AdminFineProofResult {

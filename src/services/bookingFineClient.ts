@@ -30,7 +30,8 @@ function isBookingFineSummary(value: unknown): value is BookingFineSummary {
     typeof value.actualReturnDate === 'string' &&
     typeof value.lateDays === 'number' &&
     typeof value.finePerDay === 'number' &&
-    typeof value.fineAmount === 'number'
+    typeof value.fineAmount === 'number' &&
+    (typeof value.invoiceAppliedAt === 'string' || value.invoiceAppliedAt === null)
   );
 }
 

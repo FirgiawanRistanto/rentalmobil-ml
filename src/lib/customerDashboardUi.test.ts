@@ -182,6 +182,15 @@ describe('customer dashboard UI helpers', () => {
     assert.equal(/Rincian/.test(source), true);
   });
 
+  it('tells the customer that a pending fine is already inside the invoice total', () => {
+    const source = readFileSync('src/app/dashboard/page.tsx', 'utf8');
+
+    // Denda dibebankan saat dibuat, jadi salinan panel tidak boleh menyuruh
+    // customer menunggu tagihan muncul setelah verifikasi admin.
+    assert.equal(source.includes('sudah masuk ke total tagihan booking ini'), true);
+    assert.equal(source.includes('fine.invoiceAppliedAt'), true);
+  });
+
   it('paginates the customer booking history instead of rendering every booking', () => {
     const source = readFileSync('src/app/dashboard/page.tsx', 'utf8');
 
