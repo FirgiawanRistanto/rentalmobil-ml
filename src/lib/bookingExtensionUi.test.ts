@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   getBookingExtensionBadgeClass,
   getBookingExtensionStatusLabel,
+  getBookingExtensionTableBadgeLabel,
   isPendingBookingExtensionStatus,
 } from './bookingExtensionUi';
 
@@ -27,6 +28,20 @@ describe('booking extension UI helpers', () => {
 
     for (const status of ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED', 'CANCELLED']) {
       assert.match(getBookingExtensionBadgeClass(status), /bg-/);
+    }
+  });
+
+  it('keeps table badges short so the action column stays on one line', () => {
+    const LONG_LABEL = 'Menunggu Verifikasi Admin';
+
+    assert.equal(getBookingExtensionTableBadgeLabel('AWAITING_PAYMENT'), 'Perpanjangan: Belum Bayar');
+    assert.equal(getBookingExtensionTableBadgeLabel('SUBMITTED'), 'Perpanjangan: Verifikasi');
+
+    for (const status of ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED', 'CANCELLED']) {
+      const badge = getBookingExtensionTableBadgeLabel(status);
+      assert.ok(badge.length <= 'Perpanjangan: Belum Bayar'.length, `${status} badge too long: ${badge}`);
+      assert.ok(!badge.includes(LONG_LABEL), `${status} badge reuses the long label`);
+      assert.match(badge, /^Perpanjangan:/);
     }
   });
 });

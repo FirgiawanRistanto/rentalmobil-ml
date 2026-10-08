@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
-import { toDateOnlyString } from '../domain/pricing/dateHelpers';
+import { parseDbTimestamp, toDateOnlyString } from '../domain/pricing/dateHelpers';
 import {
   type AdminDashboardMetrics,
   type AdminDashboardRecentBooking,
@@ -82,11 +82,11 @@ function normalizeDatabaseDate(value: Date | string | null): Date | null {
     return null;
   }
 
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function requireDatabaseDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function calculateRentalDurationDays(startDate: Date, endDate: Date): number {

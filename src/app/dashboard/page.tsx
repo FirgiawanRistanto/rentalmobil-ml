@@ -45,6 +45,7 @@ import {
   getBookingFineBadgeClass,
   getBookingFineErrorMessage,
   getBookingFineStatusLabel,
+  isSettledBookingFineStatus,
   type BookingFineSummary,
 } from '@/lib/bookingFineUi';
 import {
@@ -109,7 +110,13 @@ function ExtensionPanel({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const minDate = nextExtensionMinDate(booking.rental.returnDate);
-  const showForm = !extension || extension.status === 'REJECTED' || extension.status === 'CANCELLED';
+  // Perpanjangan VERIFIED punya form juga: booking yang sudah diperpanjang
+  // boleh diajukan perpanjangan berikutnya (backend menghitung dari endDate baru).
+  const showForm =
+    !extension ||
+    extension.status === 'REJECTED' ||
+    extension.status === 'CANCELLED' ||
+    extension.status === 'VERIFIED';
 
   function toMessage(error: unknown): string {
     if (error instanceof BookingExtensionClientError || error instanceof Error) {
@@ -242,6 +249,12 @@ function ExtensionPanel({
             </p>
           ) : null}
 
+          {extension?.status === 'VERIFIED' && showForm ? (
+            <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+              Perpanjangan sebelumnya disetujui — sewa berakhir {formatDateId(extension.newEndDate)}. Ajukan perpanjangan berikutnya di bawah.
+            </p>
+          ) : null}
+
           {showForm ? (
             <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={handleCreate}>
               <div className="flex-1">
@@ -352,12 +365,40 @@ function ExtensionPanel({
   );
 }
 
+function FineBreakdown({ fine }: { fine: BookingFineSummary }) {
+  return (
+    <div className="grid gap-2 rounded-lg bg-white p-3 text-sm dark:bg-slate-900 sm:grid-cols-3">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</p>
+        <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.originalEndDate)}</p>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dikembalikan</p>
+        <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.actualReturnDate)}</p>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hari Telat</p>
+        <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{fine.lateDays} hari</p>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Denda / Hari</p>
+        <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatRupiahId(fine.finePerDay)}</p>
+      </div>
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Denda</p>
+        <p className="mt-0.5 font-black text-red-600">{formatRupiahId(fine.fineAmount)}</p>
+      </div>
+    </div>
+  );
+}
+
 function FinePanel({ booking }: { booking: CustomerDashboardBooking }) {
   const [fine, setFine] = useState<BookingFineSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -415,6 +456,45 @@ function FinePanel({ booking }: { booking: CustomerDashboardBooking }) {
     return null;
   }
 
+  // Denda tuntas (disetujui/dibatalkan) tidak butuh aksi customer lagi:
+  // tampil ringkas sebagai catatan, rincian dibuka hanya kalau diminta.
+  if (isSettledBookingFineStatus(fine.status)) {
+    return (
+      <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="material-symbols-outlined text-[18px] text-slate-400">task_alt</span>
+            <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              Denda keterlambatan {formatRupiahId(fine.fineAmount)}
+            </p>
+            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${getBookingFineBadgeClass(fine.status)}`}>
+              {getBookingFineStatusLabel(fine.status)}
+            </span>
+          </div>
+          <button
+            className="text-xs font-bold text-slate-500 transition-colors hover:text-primary"
+            onClick={() => setShowBreakdown((value) => !value)}
+            type="button"
+          >
+            {showBreakdown ? 'Tutup rincian' : 'Rincian'}
+          </button>
+        </div>
+
+        {fine.status === 'REJECTED' && fine.rejectionReason ? (
+          <p className="mt-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
+            Alasan: {fine.rejectionReason}
+          </p>
+        ) : null}
+
+        {showBreakdown ? (
+          <div className="mt-3">
+            <FineBreakdown fine={fine} />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -430,40 +510,7 @@ function FinePanel({ booking }: { booking: CustomerDashboardBooking }) {
         </p>
       ) : null}
 
-      <div className="grid gap-2 rounded-lg bg-white p-3 text-sm dark:bg-slate-900 sm:grid-cols-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Jatuh Tempo</p>
-          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.originalEndDate)}</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dikembalikan</p>
-          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatDateId(fine.actualReturnDate)}</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hari Telat</p>
-          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{fine.lateDays} hari</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Denda / Hari</p>
-          <p className="mt-0.5 font-semibold text-slate-800 dark:text-slate-200">{formatRupiahId(fine.finePerDay)}</p>
-        </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Denda</p>
-          <p className="mt-0.5 font-black text-red-600">{formatRupiahId(fine.fineAmount)}</p>
-        </div>
-      </div>
-
-      {fine.status === 'REJECTED' ? (
-        <p className="mt-3 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          Denda dibatalkan admin{fine.rejectionReason ? `: ${fine.rejectionReason}` : ''}
-        </p>
-      ) : null}
-
-      {fine.status === 'VERIFIED' ? (
-        <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-          Denda sudah diverifikasi dan dibebankan ke tagihan. Muat ulang halaman untuk melihat total invoice terbaru.
-        </p>
-      ) : null}
+      <FineBreakdown fine={fine} />
 
       {fine.status === 'SUBMITTED' ? (
         <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
@@ -611,6 +658,56 @@ function BookingCard({
   );
 }
 
+function bookingRangeLabel(dashboard: CustomerBookingsResponse): string {
+  const first = (dashboard.page - 1) * dashboard.pageSize + 1;
+  const last = Math.min(dashboard.totalItems, dashboard.page * dashboard.pageSize);
+
+  return `Menampilkan ${first}-${last} dari ${dashboard.totalItems} booking`;
+}
+
+function BookingHistoryPagination({
+  dashboard,
+  isLoading,
+  onGoToPage,
+}: {
+  dashboard: CustomerBookingsResponse;
+  isLoading: boolean;
+  onGoToPage: (page: number) => void;
+}) {
+  function navigationClass(isEnabled: boolean): string {
+    return isEnabled && !isLoading
+      ? 'border-slate-200 text-slate-700 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300'
+      : 'cursor-not-allowed border-slate-100 text-slate-300 dark:border-slate-800 dark:text-slate-600';
+  }
+
+  return (
+    <nav className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p className="font-semibold text-slate-500 dark:text-slate-400">{bookingRangeLabel(dashboard)}</p>
+      <div className="flex items-center gap-2">
+        <button
+          className={`rounded-lg border px-4 py-2 text-xs font-bold transition ${navigationClass(dashboard.hasPreviousPage)}`}
+          disabled={!dashboard.hasPreviousPage || isLoading}
+          onClick={() => onGoToPage(dashboard.page - 1)}
+          type="button"
+        >
+          Sebelumnya
+        </button>
+        <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+          Halaman {dashboard.page} dari {dashboard.totalPages}
+        </span>
+        <button
+          className={`rounded-lg border px-4 py-2 text-xs font-bold transition ${navigationClass(dashboard.hasNextPage)}`}
+          disabled={!dashboard.hasNextPage || isLoading}
+          onClick={() => onGoToPage(dashboard.page + 1)}
+          type="button"
+        >
+          Berikutnya
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 function EmptyBookings() {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -642,12 +739,12 @@ export default function UserDashboard() {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const displayName = dashboard?.customer.name || user?.name || user?.email || 'Customer';
 
-  async function loadDashboardBookings() {
+  async function loadDashboardBookings(page = 1) {
     setIsLoadingBookings(true);
     setBookingError(null);
 
     try {
-      const result = await listCustomerDashboardBookingsClient();
+      const result = await listCustomerDashboardBookingsClient({ page });
       setDashboard(result);
     } catch (error) {
       setBookingError(
@@ -661,8 +758,18 @@ export default function UserDashboard() {
   }
 
   useEffect(() => {
-    void loadDashboardBookings();
+    void loadDashboardBookings(1);
   }, []);
+
+  async function goToBookingsPage(targetPage: number) {
+    if (!dashboard || isLoadingBookings || targetPage < 1 || targetPage > dashboard.totalPages) {
+      return;
+    }
+
+    await loadDashboardBookings(targetPage);
+    // Daftar booking diganti di tempat, jadi halaman baru di-scroll ke awal daftar.
+    document.getElementById('booking-saya')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   async function handleSignOut() {
     if (isSigningOut) {
@@ -709,7 +816,7 @@ export default function UserDashboard() {
     setBookingError(null);
     try {
       await cancelBookingReservationClient(booking.bookingId);
-      await loadDashboardBookings();
+      await loadDashboardBookings(dashboard?.page ?? 1);
     } catch (error) {
       setBookingError(
         error instanceof PaymentUiError
@@ -795,22 +902,31 @@ export default function UserDashboard() {
               </div>
             ) : null}
 
-            {isLoadingBookings ? (
+            {isLoadingBookings && !dashboard ? (
               <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
                 Memuat booking Anda...
               </div>
-            ) : dashboard && dashboard.bookings.length > 0 ? (
-              <div className="grid gap-4">
-                {dashboard.bookings.map((booking) => (
-                  <BookingCard
-                    booking={booking}
-                    isCancelling={cancellingBookingId === booking.bookingId}
-                    key={booking.bookingId}
-                    onCancel={handleCancelReservation}
-                    onRefresh={loadDashboardBookings}
+            ) : dashboard && dashboard.totalItems > 0 ? (
+              <>
+                <div className="grid gap-4">
+                  {dashboard.bookings.map((booking) => (
+                    <BookingCard
+                      booking={booking}
+                      isCancelling={cancellingBookingId === booking.bookingId}
+                      key={booking.bookingId}
+                      onCancel={handleCancelReservation}
+                      onRefresh={() => loadDashboardBookings(dashboard.page)}
+                    />
+                  ))}
+                </div>
+                {dashboard.totalPages > 1 ? (
+                  <BookingHistoryPagination
+                    dashboard={dashboard}
+                    isLoading={isLoadingBookings}
+                    onGoToPage={(targetPage) => void goToBookingsPage(targetPage)}
                   />
-                ))}
-              </div>
+                ) : null}
+              </>
             ) : (
               <EmptyBookings />
             )}

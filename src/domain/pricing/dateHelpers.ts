@@ -2,6 +2,34 @@ import { PricingDomainError } from './errors';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ZONELESS_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+
+/**
+ * Parse literal timestamp dari driver database.
+ * Kolom `timestamp` tanpa zona diserialisasi sebagai UTC, sedangkan
+ * `new Date(string)` menganggapnya waktu lokal — akibatnya tanggal WIB
+ * (midnight, tersimpan sebagai pukul 17:00Z hari sebelumnya) bergeser
+ * satu hari ke belakang. Literal berzona (offset pg `+07` atau `Z`)
+ * dinormalkan ke format ISO agar tetap terbaca benar.
+ */
+export function parseDbTimestamp(value: string): Date {
+  const trimmed = value.trim();
+
+  if (DATE_ONLY_PATTERN.test(trimmed)) {
+    const [year, month, day] = trimmed.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
+  if (ZONELESS_TIMESTAMP_PATTERN.test(trimmed)) {
+    return new Date(`${trimmed.replace(' ', 'T')}Z`);
+  }
+
+  const normalized = trimmed
+    .replace(' ', 'T')
+    .replace(/([+-]\d{2})$/, '$1:00');
+
+  return new Date(normalized);
+}
 
 function toDate(input: Date | string, label: string): Date {
   if (input instanceof Date) {
@@ -33,7 +61,7 @@ function toDate(input: Date | string, label: string): Date {
     return date;
   }
 
-  const date = new Date(input);
+  const date = parseDbTimestamp(input);
 
   if (Number.isNaN(date.getTime())) {
     throw new PricingDomainError('INVALID_DATE', `${label} tidak valid.`);

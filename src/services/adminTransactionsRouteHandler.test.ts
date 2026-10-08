@@ -19,6 +19,7 @@ const responseBody = {
       bookingStatus: 'PENDING',
       displayStatus: 'WAITING_PAYMENT',
       extensionStatus: null,
+      fineStatus: null,
       createdAt: '2026-06-09T10:00:00.000Z',
       reservationExpiresAt: '2026-06-09T10:30:00.000Z',
       customer: { id: 'customer-1', name: 'Customer Test', email: 'customer@example.test' },

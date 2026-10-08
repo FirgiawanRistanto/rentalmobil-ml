@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
-import { toDateOnlyString } from '../domain/pricing/dateHelpers';
+import { parseDbTimestamp, toDateOnlyString } from '../domain/pricing/dateHelpers';
 import {
   buildAdminTransactionCode,
   buildAdminTransactionDetailPath,
@@ -12,7 +12,12 @@ import {
   type AdminTransactionListItem,
   type AdminTransactionsResponse,
 } from '../lib/adminTransactionUi';
-import { computeLateReturnFine, LATE_FINE_DAILY_RATE_PCT } from '../lib/bookingFineUi';
+import {
+  BOOKING_FINE_STATUSES,
+  computeLateReturnFine,
+  LATE_FINE_DAILY_RATE_PCT,
+  type BookingFineStatus,
+} from '../lib/bookingFineUi';
 import {
   BOOKING_EXTENSION_STATUSES,
   type BookingExtensionStatus,
@@ -74,6 +79,7 @@ interface AdminTransactionRow {
   paymentReviewedAt: Date | string | null;
   paymentRejectionReason: string | null;
   extensionStatus: string | null;
+  fineStatus: string | null;
 }
 
 interface AdminBookingStatusRow {
@@ -119,11 +125,11 @@ function normalizeDatabaseDate(value: Date | string | null): Date | null {
     return null;
   }
 
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function requireDatabaseDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function calculateRentalDurationDays(startDate: Date, endDate: Date): number {
@@ -359,7 +365,13 @@ function createDefaultRepository(): AdminTransactionsRepository {
           where be."bookingId" = b.id
           order by be."createdAt" desc
           limit 1
-        ) as "extensionStatus"
+        ) as "extensionStatus",
+        (
+          select bf."status"
+          from booking_fines bf
+          where bf."bookingId" = b.id
+          limit 1
+        ) as "fineStatus"
       ${baseFromSql}
       ${whereSql}
       order by ${orderSql}
@@ -525,6 +537,12 @@ function normalizeExtensionStatus(value: string | null): BookingExtensionStatus 
     : null;
 }
 
+function normalizeFineStatus(value: string | null): BookingFineStatus | null {
+  return BOOKING_FINE_STATUSES.includes(value as BookingFineStatus)
+    ? (value as BookingFineStatus)
+    : null;
+}
+
 function mapTransactionRow(row: AdminTransactionRow, referenceTime: Date): AdminTransactionListItem {
   const createdAt = requireDatabaseDate(row.createdAt);
   const reservationExpiresAt = normalizeDatabaseDate(row.reservationExpiresAt);
@@ -548,6 +566,7 @@ function mapTransactionRow(row: AdminTransactionRow, referenceTime: Date): Admin
     bookingStatus: row.bookingStatus,
     displayStatus,
     extensionStatus: normalizeExtensionStatus(row.extensionStatus),
+    fineStatus: normalizeFineStatus(row.fineStatus),
     createdAt: createdAt.toISOString(),
     reservationExpiresAt: reservationExpiresAt?.toISOString() ?? null,
     customer: {

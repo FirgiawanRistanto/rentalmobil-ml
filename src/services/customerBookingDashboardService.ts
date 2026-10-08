@@ -1,11 +1,15 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
-import { toDateOnlyString } from '../domain/pricing/dateHelpers';
+import { parseDbTimestamp, toDateOnlyString } from '../domain/pricing/dateHelpers';
 import {
   buildCustomerBookingPaymentPath,
   deriveCustomerBookingDisplayStatus,
+  parseCustomerBookingsSearchParams,
+  type CustomerBookingDisplayStatus,
+  type CustomerBookingsQuery,
   type CustomerBookingsResponse,
   type CustomerDashboardBooking,
+  type CustomerDashboardSummary,
 } from '../lib/customerDashboardUi';
 import { PaymentServiceError, drizzlePaymentRepository, type PaymentStatus } from './paymentService';
 
@@ -41,14 +45,34 @@ export interface CustomerBookingDashboardRow {
   paymentRejectionReason: string | null;
 }
 
+export interface CustomerBookingSummaryRow {
+  bookingStatus: BookingStatus;
+  reservationExpiresAt: Date | null;
+  paymentStatus: PaymentStatus | null;
+  paymentReviewExpiresAt: Date | null;
+}
+
+export interface CustomerBookingsRange {
+  limit: number;
+  offset: number;
+}
+
+interface CustomerBookingsPage {
+  rows: CustomerBookingDashboardRow[];
+  totalItems: number;
+}
+
 interface CustomerBookingDashboardRepository {
   expireSubmittedPayments(now: Date): Promise<void>;
-  listCustomerBookings(userId: string): Promise<CustomerBookingDashboardRow[]>;
+  listCustomerBookings(userId: string, range: CustomerBookingsRange): Promise<CustomerBookingsPage>;
+  /** Ringkasan metrik dihitung dari seluruh booking user, bukan hanya halaman aktif. */
+  listCustomerBookingSummaryRows(userId: string): Promise<CustomerBookingSummaryRow[]>;
 }
 
 interface CustomerBookingDashboardDependencies {
   repository?: CustomerBookingDashboardRepository;
   now?: () => Date;
+  query?: URLSearchParams | Record<string, string | string[] | undefined> | Partial<CustomerBookingsQuery>;
 }
 
 function normalizeDatabaseDate(value: Date | string | null): Date | null {
@@ -56,11 +80,11 @@ function normalizeDatabaseDate(value: Date | string | null): Date | null {
     return null;
   }
 
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function requireDatabaseDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function calculateRentalDurationDays(startDate: Date, endDate: Date): number {
@@ -72,13 +96,24 @@ function mapRows<T>(result: { rows?: unknown[] } | unknown[]): T[] {
   return (Array.isArray(result) ? result : result.rows ?? []) as T[];
 }
 
+function readCount(result: { rows?: unknown[] } | unknown[]): number {
+  const [row] = mapRows<Record<string, unknown>>(result);
+  const parsed = Number(row?.count ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function createDefaultRepository(): CustomerBookingDashboardRepository {
   return {
     async expireSubmittedPayments(now) {
       await drizzlePaymentRepository.expireSubmittedPayments(now);
     },
 
-    async listCustomerBookings(userId) {
+    async listCustomerBookings(userId, range) {
+      const countResult = await db.execute(sql`
+        select count(*) as "count"
+        from bookings b
+        where b."userId" = ${userId}
+      `);
       const result = await db.execute(sql`
         select
           b.id as "bookingId",
@@ -108,16 +143,39 @@ function createDefaultRepository(): CustomerBookingDashboardRepository {
         left join booking_payments p on p."bookingId" = b.id
         where b."userId" = ${userId}
         order by b."createdAt" desc
-        limit 100
+        limit ${range.limit}
+        offset ${range.offset}
       `);
 
-      return mapRows<CustomerBookingDashboardRow>(result).map((row) => ({
+      return {
+        rows: mapRows<CustomerBookingDashboardRow>(result).map((row) => ({
+          ...row,
+          reservationExpiresAt: normalizeDatabaseDate(row.reservationExpiresAt),
+          createdAt: requireDatabaseDate(row.createdAt),
+          startDate: requireDatabaseDate(row.startDate),
+          endDate: requireDatabaseDate(row.endDate),
+          paymentSubmittedAt: normalizeDatabaseDate(row.paymentSubmittedAt),
+          paymentReviewExpiresAt: normalizeDatabaseDate(row.paymentReviewExpiresAt),
+        })),
+        totalItems: readCount(countResult),
+      };
+    },
+
+    async listCustomerBookingSummaryRows(userId) {
+      const result = await db.execute(sql`
+        select
+          b.status as "bookingStatus",
+          b."reservationExpiresAt" as "reservationExpiresAt",
+          p.status as "paymentStatus",
+          p."reviewExpiresAt" as "paymentReviewExpiresAt"
+        from bookings b
+        left join booking_payments p on p."bookingId" = b.id
+        where b."userId" = ${userId}
+      `);
+
+      return mapRows<CustomerBookingSummaryRow>(result).map((row) => ({
         ...row,
         reservationExpiresAt: normalizeDatabaseDate(row.reservationExpiresAt),
-        createdAt: requireDatabaseDate(row.createdAt),
-        startDate: requireDatabaseDate(row.startDate),
-        endDate: requireDatabaseDate(row.endDate),
-        paymentSubmittedAt: normalizeDatabaseDate(row.paymentSubmittedAt),
         paymentReviewExpiresAt: normalizeDatabaseDate(row.paymentReviewExpiresAt),
       }));
     },
@@ -180,18 +238,55 @@ function mapCustomerBookingRow(
   };
 }
 
-function summarizeCustomerBookings(bookings: CustomerDashboardBooking[]) {
+function summarizeCustomerBookings(
+  statuses: CustomerBookingDisplayStatus[],
+): CustomerDashboardSummary {
   return {
-    totalBookings: bookings.length,
-    activeBookings: bookings.filter((booking) =>
-      booking.displayStatus === 'WAITING_PAYMENT_PROOF' ||
-      booking.displayStatus === 'WAITING_ADMIN_VERIFICATION' ||
-      booking.displayStatus === 'CONFIRMED'
+    totalBookings: statuses.length,
+    activeBookings: statuses.filter((status) =>
+      status === 'WAITING_PAYMENT_PROOF' ||
+      status === 'WAITING_ADMIN_VERIFICATION' ||
+      status === 'CONFIRMED'
     ).length,
-    completedOrConfirmedBookings: bookings.filter((booking) =>
-      booking.displayStatus === 'CONFIRMED' || booking.displayStatus === 'COMPLETED'
+    completedOrConfirmedBookings: statuses.filter((status) =>
+      status === 'CONFIRMED' || status === 'COMPLETED'
     ).length,
   };
+}
+
+function deriveSummaryDisplayStatus(
+  row: CustomerBookingSummaryRow,
+  referenceTime: Date,
+): CustomerBookingDisplayStatus {
+  return deriveCustomerBookingDisplayStatus(
+    {
+      bookingStatus: row.bookingStatus,
+      reservationExpiresAt: normalizeDatabaseDate(row.reservationExpiresAt)?.toISOString() ?? null,
+      payment: {
+        paymentStatus: row.paymentStatus,
+        reviewExpiresAt: normalizeDatabaseDate(row.paymentReviewExpiresAt)?.toISOString() ?? null,
+      },
+    },
+    referenceTime,
+  );
+}
+
+function normalizeCustomerBookingsQuery(
+  query: CustomerBookingDashboardDependencies['query'],
+): CustomerBookingsQuery {
+  if (!query) {
+    return parseCustomerBookingsSearchParams({});
+  }
+
+  if (query instanceof URLSearchParams) {
+    return parseCustomerBookingsSearchParams(query);
+  }
+
+  return parseCustomerBookingsSearchParams(
+    Object.fromEntries(
+      Object.entries(query).map(([key, value]) => [key, Array.isArray(value) ? value : String(value ?? '')]),
+    ),
+  );
 }
 
 export async function listCustomerDashboardBookings(
@@ -206,10 +301,17 @@ export async function listCustomerDashboardBookings(
   const now = dependencies.now ?? (() => new Date());
   const referenceTime = now();
 
+  const query = normalizeCustomerBookingsQuery(dependencies.query);
+
   await repository.expireSubmittedPayments(referenceTime);
 
-  const rows = await repository.listCustomerBookings(user.id);
+  const { rows, totalItems } = await repository.listCustomerBookings(user.id, {
+    limit: query.pageSize,
+    offset: (query.page - 1) * query.pageSize,
+  });
+  const summaryRows = await repository.listCustomerBookingSummaryRows(user.id);
   const bookings = rows.map((row) => mapCustomerBookingRow(row, referenceTime));
+  const totalPages = Math.max(1, Math.ceil(totalItems / query.pageSize));
 
   return {
     customer: {
@@ -217,7 +319,16 @@ export async function listCustomerDashboardBookings(
       name: user.name ?? null,
       email: user.email ?? null,
     },
-    summary: summarizeCustomerBookings(bookings),
+    // Metrik dashboard menjumlahkan seluruh booking user, bukan hanya halaman aktif.
+    summary: summarizeCustomerBookings(
+      summaryRows.map((row) => deriveSummaryDisplayStatus(row, referenceTime)),
+    ),
     bookings,
+    page: query.page,
+    pageSize: query.pageSize,
+    totalItems,
+    totalPages,
+    hasNextPage: query.page < totalPages,
+    hasPreviousPage: query.page > 1,
   };
 }

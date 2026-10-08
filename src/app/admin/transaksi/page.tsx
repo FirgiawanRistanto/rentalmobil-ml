@@ -18,8 +18,15 @@ import { getCurrentAuthSession } from '@/lib/auth-session';
 import {
   getBookingExtensionBadgeClass,
   getBookingExtensionStatusLabel,
+  getBookingExtensionTableBadgeLabel,
   isPendingBookingExtensionStatus,
 } from '@/lib/bookingExtensionUi';
+import {
+  getBookingFineBadgeClass,
+  getBookingFineStatusLabel,
+  getBookingFineTableBadgeLabel,
+  isPendingBookingFineStatus,
+} from '@/lib/bookingFineUi';
 import { PaymentServiceError } from '@/services/paymentService';
 import {
   AdminTransactionsServiceError,
@@ -235,16 +242,25 @@ export default async function AdminTransaksiPage({ searchParams }: AdminTransaks
                           <Link
                             className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black transition hover:opacity-75 ${getBookingExtensionBadgeClass(transaction.extensionStatus)}`}
                             href={transaction.actions.detailPath}
-                            title="Buka detail transaksi untuk memproses perpanjangan"
+                            title={`Perpanjangan: ${getBookingExtensionStatusLabel(transaction.extensionStatus)} — buka detail untuk memproses`}
                           >
-                            Perpanjangan: {getBookingExtensionStatusLabel(transaction.extensionStatus)}
+                            {getBookingExtensionTableBadgeLabel(transaction.extensionStatus)}
+                          </Link>
+                        )}
+                        {isPendingBookingFineStatus(transaction.fineStatus) && (
+                          <Link
+                            className={`mt-1.5 inline-flex rounded-full px-2.5 py-1 text-[11px] font-black transition hover:opacity-75 ${getBookingFineBadgeClass(transaction.fineStatus)}`}
+                            href={transaction.actions.detailPath}
+                            title={`Denda: ${getBookingFineStatusLabel(transaction.fineStatus)} — buka detail untuk memproses`}
+                          >
+                            {getBookingFineTableBadgeLabel(transaction.fineStatus)}
                           </Link>
                         )}
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end">
                           <Link
-                            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+                            className="whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
                             href={transaction.actions.detailPath}
                           >
                             {transaction.displayStatus === 'WAITING_VERIFICATION' ? 'Review' : 'Lihat Detail'}

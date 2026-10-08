@@ -59,6 +59,12 @@ const responseBody = {
       },
     },
   ],
+  page: 1,
+  pageSize: 5,
+  totalItems: 1,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
 } satisfies CustomerBookingsResponse;
 
 describe('customer booking dashboard route handler', () => {
@@ -81,6 +87,28 @@ describe('customer booking dashboard route handler', () => {
     assert.equal(receivedUserId, user.id);
     assert.deepEqual(body, responseBody);
     assert.equal(JSON.stringify(body).includes('proofStorageKey'), false);
+  });
+
+  it('forwards the booking history page from the query string to the service', async () => {
+    let receivedPage: string | null = null;
+    const handler = createGetCustomerBookingsHandler({
+      getCurrentUser: async () => user,
+      service: {
+        async listCustomerDashboardBookings(_routeUser, dependencies) {
+          receivedPage = dependencies?.query instanceof URLSearchParams
+            ? dependencies.query.get('page')
+            : null;
+          return responseBody;
+        },
+      },
+    });
+
+    const response = await handler(
+      new Request('http://localhost:3000/api/customer/bookings?page=3&pageSize=2'),
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(receivedPage, '3');
   });
 
   it('maps anonymous requests to HTTP 401', async () => {

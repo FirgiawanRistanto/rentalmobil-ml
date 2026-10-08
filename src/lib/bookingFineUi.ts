@@ -116,6 +116,50 @@ export function getBookingFineBadgeClass(status: BookingFineStatus | string): st
   }
 }
 
+const PENDING_BOOKING_FINE_STATUSES = ['AWAITING_PAYMENT', 'SUBMITTED'] as const;
+
+export type PendingBookingFineStatus = (typeof PENDING_BOOKING_FINE_STATUSES)[number];
+
+/**
+ * Denda yang masih perlu ditindaklanjuti: menunggu pembayaran customer
+ * (AWAITING_PAYMENT) atau menunggu verifikasi admin (SUBMITTED).
+ * Status akhir (VERIFIED/REJECTED) tidak lagi tampil sebagai badge antrean.
+ */
+export function isPendingBookingFineStatus(
+  status: BookingFineStatus | string | null | undefined,
+): status is PendingBookingFineStatus {
+  return PENDING_BOOKING_FINE_STATUSES.includes(status as PendingBookingFineStatus);
+}
+
+const SETTLED_BOOKING_FINE_STATUSES = ['VERIFIED', 'REJECTED'] as const;
+
+export type SettledBookingFineStatus = (typeof SETTLED_BOOKING_FINE_STATUSES)[number];
+
+/**
+ * Denda yang sudah tuntas dan tidak butuh aksi customer lagi
+ * (VERIFIED = masuk tagihan, REJECTED = dibatalkan admin).
+ */
+export function isSettledBookingFineStatus(
+  status: BookingFineStatus | string | null | undefined,
+): status is SettledBookingFineStatus {
+  return SETTLED_BOOKING_FINE_STATUSES.includes(status as SettledBookingFineStatus);
+}
+
+/**
+ * Label ringkas badge denda untuk tabel daftar transaksi admin —
+ * kolom Status harus tetap ramping supaya tombol aksi tidak terpotong.
+ */
+export function getBookingFineTableBadgeLabel(status: BookingFineStatus | string): string {
+  switch (status) {
+    case 'AWAITING_PAYMENT':
+      return 'Denda: Belum Bayar';
+    case 'SUBMITTED':
+      return 'Denda: Verifikasi';
+    default:
+      return 'Denda';
+  }
+}
+
 export function getBookingFineErrorMessage(code: string): string {
   switch (code) {
     case 'AUTHENTICATION_REQUIRED':

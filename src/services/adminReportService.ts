@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
-import { toDateOnlyString } from '../domain/pricing/dateHelpers';
+import { parseDbTimestamp, toDateOnlyString } from '../domain/pricing/dateHelpers';
 import {
   buildAdminReportCode,
   parseAdminReportQuery,
@@ -102,7 +102,7 @@ function normalizeMoney(value: unknown): number {
 }
 
 function normalizeDatabaseDate(value: Date | string): Date {
-  return value instanceof Date ? value : new Date(value);
+  return value instanceof Date ? value : parseDbTimestamp(value);
 }
 
 function calculateRentalDurationDays(startDate: Date, endDate: Date): number {

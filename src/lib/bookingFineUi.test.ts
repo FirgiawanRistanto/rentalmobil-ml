@@ -7,6 +7,9 @@ import {
   getBookingFineBadgeClass,
   getBookingFineErrorMessage,
   getBookingFineStatusLabel,
+  getBookingFineTableBadgeLabel,
+  isPendingBookingFineStatus,
+  isSettledBookingFineStatus,
 } from './bookingFineUi';
 
 describe('booking fine ui', () => {
@@ -87,5 +90,38 @@ describe('booking fine ui', () => {
     assert.match(getBookingFineBadgeClass('AWAITING_PAYMENT'), /amber/);
     assert.match(getBookingFineErrorMessage('FINE_NOT_FOUND'), /tidak ditemukan/i);
     assert.equal(getBookingFineErrorMessage('UNKNOWN_CODE'), 'Terjadi kesalahan. Silakan coba lagi.');
+  });
+
+  it('flags only actionable fine states as pending so finished badges disappear', () => {
+    assert.equal(isPendingBookingFineStatus('AWAITING_PAYMENT'), true);
+    assert.equal(isPendingBookingFineStatus('SUBMITTED'), true);
+    // Status selesai tidak boleh menghasilkan badge antrean di tabel admin.
+    assert.equal(isPendingBookingFineStatus('VERIFIED'), false);
+    assert.equal(isPendingBookingFineStatus('REJECTED'), false);
+    assert.equal(isPendingBookingFineStatus(null), false);
+    assert.equal(isPendingBookingFineStatus(undefined), false);
+    assert.equal(isPendingBookingFineStatus('BOGUS_STATUS'), false);
+  });
+
+  it('flags settled fines so the dashboard can collapse them into a quiet record', () => {
+    assert.equal(isSettledBookingFineStatus('VERIFIED'), true);
+    assert.equal(isSettledBookingFineStatus('REJECTED'), true);
+    // Status yang masih butuh aksi customer tetap pakai panel penuh.
+    assert.equal(isSettledBookingFineStatus('AWAITING_PAYMENT'), false);
+    assert.equal(isSettledBookingFineStatus('SUBMITTED'), false);
+    assert.equal(isSettledBookingFineStatus(null), false);
+    assert.equal(isSettledBookingFineStatus(undefined), false);
+    assert.equal(isSettledBookingFineStatus('BOGUS_STATUS'), false);
+  });
+
+  it('keeps table badges short so the action column stays on one line', () => {
+    assert.equal(getBookingFineTableBadgeLabel('AWAITING_PAYMENT'), 'Denda: Belum Bayar');
+    assert.equal(getBookingFineTableBadgeLabel('SUBMITTED'), 'Denda: Verifikasi');
+
+    for (const status of ['AWAITING_PAYMENT', 'SUBMITTED', 'VERIFIED', 'REJECTED']) {
+      const badge = getBookingFineTableBadgeLabel(status);
+      assert.ok(badge.length <= 'Denda: Belum Bayar'.length, `${status} badge too long: ${badge}`);
+      assert.match(badge, /^Denda/);
+    }
   });
 });

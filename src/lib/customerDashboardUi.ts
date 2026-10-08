@@ -2,6 +2,10 @@ import { buildBookingPaymentPath, type BookingStatus, type PaymentStatus, type T
 
 export const CUSTOMER_BOOKINGS_ENDPOINT = '/api/customer/bookings';
 
+/** Riwayat booking ditampilkan sebagai kartu besar, jadi satu halaman berisi 5 kartu. */
+export const DEFAULT_CUSTOMER_BOOKINGS_PAGE_SIZE = 5;
+export const CUSTOMER_BOOKINGS_MAX_PAGE_SIZE = 20;
+
 export type CustomerBookingDisplayStatus =
   | 'WAITING_PAYMENT_PROOF'
   | 'WAITING_ADMIN_VERIFICATION'
@@ -52,6 +56,16 @@ export interface CustomerDashboardSummary {
   completedOrConfirmedBookings: number;
 }
 
+export interface CustomerBookingsQuery {
+  page: number;
+  pageSize: number;
+}
+
+export const DEFAULT_CUSTOMER_BOOKINGS_QUERY: CustomerBookingsQuery = {
+  page: 1,
+  pageSize: DEFAULT_CUSTOMER_BOOKINGS_PAGE_SIZE,
+};
+
 export interface CustomerBookingsResponse {
   customer: {
     id: string;
@@ -60,6 +74,12 @@ export interface CustomerBookingsResponse {
   };
   summary: CustomerDashboardSummary;
   bookings: CustomerDashboardBooking[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
 }
 
 export interface DisplayStatusInput {
@@ -71,8 +91,49 @@ export interface DisplayStatusInput {
   };
 }
 
-export function buildCustomerBookingsEndpoint(): string {
-  return CUSTOMER_BOOKINGS_ENDPOINT;
+function readSearchParam(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+  key: string,
+): string | null {
+  if (params instanceof URLSearchParams) {
+    return params.get(key);
+  }
+
+  const value = params[key];
+  return Array.isArray(value) ? value[0] ?? null : value ?? null;
+}
+
+function clampPositiveInt(value: string | null, fallback: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return Math.min(parsed, max);
+}
+
+export function parseCustomerBookingsSearchParams(
+  params: URLSearchParams | Record<string, string | string[] | undefined>,
+): CustomerBookingsQuery {
+  return {
+    page: clampPositiveInt(readSearchParam(params, 'page'), DEFAULT_CUSTOMER_BOOKINGS_QUERY.page, 100000),
+    pageSize: clampPositiveInt(
+      readSearchParam(params, 'pageSize'),
+      DEFAULT_CUSTOMER_BOOKINGS_QUERY.pageSize,
+      CUSTOMER_BOOKINGS_MAX_PAGE_SIZE,
+    ),
+  };
+}
+
+export function buildCustomerBookingsEndpoint(query: Partial<CustomerBookingsQuery> = {}): string {
+  const nextQuery = { ...DEFAULT_CUSTOMER_BOOKINGS_QUERY, ...query };
+  const params = new URLSearchParams();
+
+  if (nextQuery.page !== DEFAULT_CUSTOMER_BOOKINGS_QUERY.page) params.set('page', String(nextQuery.page));
+  if (nextQuery.pageSize !== DEFAULT_CUSTOMER_BOOKINGS_QUERY.pageSize) params.set('pageSize', String(nextQuery.pageSize));
+
+  const serialized = params.toString();
+  return serialized ? `${CUSTOMER_BOOKINGS_ENDPOINT}?${serialized}` : CUSTOMER_BOOKINGS_ENDPOINT;
 }
 
 export function isPastIsoInstant(value: string | null | undefined, referenceDate = new Date()): boolean {

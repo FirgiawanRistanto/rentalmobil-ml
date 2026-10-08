@@ -34,9 +34,6 @@ export default async function AdminPengaturanPage() {
         <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90">
           <div>
             <h1 className="text-lg font-black text-slate-900 dark:text-white">Pengaturan</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Konfigurasi pricing: denda keterlambatan dan ambang retrain continuous learning.
-            </p>
           </div>
         </header>
 

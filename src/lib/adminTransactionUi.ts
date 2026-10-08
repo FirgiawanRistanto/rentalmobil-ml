@@ -1,4 +1,5 @@
 import type { BookingExtensionStatus } from './bookingExtensionUi';
+import type { BookingFineStatus } from './bookingFineUi';
 import {
   formatDateId,
   formatDateTimeId,
@@ -50,6 +51,7 @@ export interface AdminTransactionListItem {
   bookingStatus: BookingStatus;
   displayStatus: AdminTransactionDisplayStatus;
   extensionStatus: BookingExtensionStatus | null;
+  fineStatus: BookingFineStatus | null;
   createdAt: string;
   reservationExpiresAt: string | null;
   customer: {

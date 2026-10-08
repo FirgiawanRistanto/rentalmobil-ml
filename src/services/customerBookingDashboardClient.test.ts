@@ -50,6 +50,12 @@ const dashboardResponse = {
       },
     },
   ],
+  page: 1,
+  pageSize: 5,
+  totalItems: 1,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
 };
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -69,6 +75,20 @@ describe('customer booking dashboard browser client', () => {
     assert.equal(requestedUrl, buildCustomerBookingsEndpoint());
     assert.equal(result.bookings[0].pricing.totalInvoiceDisplay, 4623000);
     assert.equal(result.bookings[0].actions.paymentPath.startsWith('/booking/payment/'), true);
+  });
+
+  it('requests a specific history page when the dashboard moves pages', async () => {
+    let requestedUrl = '';
+    const result = await listCustomerDashboardBookingsClient({
+      page: 2,
+      fetchFn: async (input) => {
+        requestedUrl = String(input);
+        return jsonResponse({ ...dashboardResponse, page: 2 });
+      },
+    });
+
+    assert.equal(requestedUrl, '/api/customer/bookings?page=2');
+    assert.equal(result.page, 2);
   });
 
   it('maps auth errors to customer-safe messages', async () => {

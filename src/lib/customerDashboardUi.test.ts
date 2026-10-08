@@ -3,10 +3,12 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
   buildCustomerBookingPaymentPath,
+  buildCustomerBookingsEndpoint,
   canCancelReservationFromDashboard,
   canUploadPaymentProofFromDashboard,
   deriveCustomerBookingDisplayStatus,
   getCustomerDisplayStatusLabel,
+  parseCustomerBookingsSearchParams,
   type CustomerDashboardBooking,
 } from './customerDashboardUi';
 
@@ -54,6 +56,37 @@ function dashboardBooking(overrides: Partial<CustomerDashboardBooking> = {}): Cu
     ...overrides,
   };
 }
+
+describe('customer booking history pagination helpers', () => {
+  it('defaults to the first page with a readable card-sized page', () => {
+    assert.deepEqual(parseCustomerBookingsSearchParams({}), { page: 1, pageSize: 5 });
+  });
+
+  it('parses page numbers from the request query and clamps invalid input', () => {
+    assert.deepEqual(parseCustomerBookingsSearchParams(new URLSearchParams('page=3&pageSize=2')), {
+      page: 3,
+      pageSize: 2,
+    });
+    assert.deepEqual(parseCustomerBookingsSearchParams({ page: ['4'], pageSize: '2' }), {
+      page: 4,
+      pageSize: 2,
+    });
+    // Nilai kosong/negatif/bukan angka jatuh ke default, pageSize dibatasi maksimum.
+    assert.deepEqual(parseCustomerBookingsSearchParams({ page: '0', pageSize: '-3' }), { page: 1, pageSize: 5 });
+    assert.deepEqual(parseCustomerBookingsSearchParams({ page: 'abc' }), { page: 1, pageSize: 5 });
+    assert.equal(parseCustomerBookingsSearchParams({ pageSize: '999' }).pageSize, 20);
+  });
+
+  it('builds the customer bookings endpoint with an explicit page only when needed', () => {
+    assert.equal(buildCustomerBookingsEndpoint(), '/api/customer/bookings');
+    assert.equal(buildCustomerBookingsEndpoint({ page: 1 }), '/api/customer/bookings');
+    assert.equal(buildCustomerBookingsEndpoint({ page: 3 }), '/api/customer/bookings?page=3');
+    assert.equal(
+      buildCustomerBookingsEndpoint({ page: 2, pageSize: 10 }),
+      '/api/customer/bookings?page=2&pageSize=10',
+    );
+  });
+});
 
 describe('customer dashboard UI helpers', () => {
   it('maps real booking/payment states to customer-friendly dashboard statuses', () => {
@@ -123,6 +156,41 @@ describe('customer dashboard UI helpers', () => {
     assert.equal(getCustomerDisplayStatusLabel('WAITING_PAYMENT_PROOF'), 'Menunggu Bukti Pembayaran');
     assert.equal(getCustomerDisplayStatusLabel('WAITING_ADMIN_VERIFICATION'), 'Menunggu Verifikasi Admin');
     assert.equal(getCustomerDisplayStatusLabel('PAYMENT_REJECTED'), 'Pembayaran Ditolak');
+  });
+
+  it('lets customers request another extension after a verified one', () => {
+    const source = readFileSync('src/app/dashboard/page.tsx', 'utf8');
+    const showFormDeclaration = /const showForm =[\s\S]*?;/.exec(source)?.[0] ?? '';
+
+    // Booking yang sudah diperpanjang (VERIFIED) wajib tetap menampilkan form
+    // perpanjangan ulang — backend menghitung dari endDate terbaru.
+    assert.equal(showFormDeclaration.includes("extension.status === 'VERIFIED'"), true);
+    // Ringkasan perpanjangan sebelumnya tetap tampil di atas form.
+    assert.equal(source.includes('Perpanjangan sebelumnya disetujui'), true);
+  });
+
+  it('collapses a settled fine into a quiet record without instruction prose', () => {
+    const source = readFileSync('src/app/dashboard/page.tsx', 'utf8');
+
+    // Dead-end: nyuruh reload tapi tampilan gak berubah setelah reload.
+    assert.equal(source.includes('Muat ulang halaman untuk melihat total invoice'), false);
+    // Narasi panjang yang cuma mengulang total invoice di header kartu sudah dibuang.
+    assert.equal(source.includes('sudah diverifikasi dan dibebankan ke tagihan'), false);
+    // Denda tuntas dirender sebagai catatan ringkas; rincian dibuka kalau diminta.
+    assert.equal(source.includes('isSettledBookingFineStatus(fine.status)'), true);
+    assert.equal(source.includes('Tutup rincian'), true);
+    assert.equal(/Rincian/.test(source), true);
+  });
+
+  it('paginates the customer booking history instead of rendering every booking', () => {
+    const source = readFileSync('src/app/dashboard/page.tsx', 'utf8');
+
+    assert.equal(source.includes('listCustomerDashboardBookingsClient({ page })'), true);
+    assert.equal(source.includes('Halaman {dashboard.page} dari {dashboard.totalPages}'), true);
+    // Tombol halaman mengirim nomor halaman ke service, bukan cuma menggeser tampilan.
+    assert.equal(source.includes('onGoToPage(dashboard.page + 1)'), true);
+    assert.equal(source.includes('onGoToPage(dashboard.page - 1)'), true);
+    assert.equal(source.includes('goToBookingsPage(targetPage)'), true);
   });
 
   it('keeps dashboard source away from legacy routes and hardcoded booking demo data', () => {

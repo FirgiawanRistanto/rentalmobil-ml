@@ -56,11 +56,28 @@ describe('admin transaksi page source', () => {
     assert.match(page, /getBookingExtensionBadgeClass/);
     assert.match(page, /getBookingExtensionStatusLabel/);
     assert.match(page, /Perpanjangan:/);
+    // Badge tabel memakai label ringkas supaya kolom Status tidak meluap.
+    assert.match(page, /getBookingExtensionTableBadgeLabel/);
+    assert.doesNotMatch(page, /Perpanjangan: Menunggu Verifikasi Admin\{/);
     // Badge perpanjangan wajib berupa link langsung ke detail transaksi.
     assert.match(
       page,
       /isPendingBookingExtensionStatus\(transaction\.extensionStatus\) && \(\s*<Link\b[^>]*href=\{transaction\.actions\.detailPath\}/,
     );
+  });
+
+  it('shows a pending fine badge so admins notice verification requests', () => {
+    const page = readFileSync('src/app/admin/transaksi/page.tsx', 'utf8');
+
+    assert.match(page, /isPendingBookingFineStatus/);
+    assert.match(page, /getBookingFineTableBadgeLabel/);
+    // Badge denda wajib berupa link langsung ke detail transaksi.
+    assert.match(
+      page,
+      /isPendingBookingFineStatus\(transaction\.fineStatus\) && \(\s*<Link\b[^>]*href=\{transaction\.actions\.detailPath\}/,
+    );
+    // Label pendek dipakai supaya kolom Status tidak meluap.
+    assert.match(page, /getBookingFineStatusLabel/);
   });
 
   it('keeps the main transaction table compact', () => {

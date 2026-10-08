@@ -4,6 +4,7 @@ import {
   mapCarCategoryToModelCategory,
   mapTripTypeToModelTripType,
 } from '../domain/pricing/modelMappings';
+import { parseDbTimestamp } from '../domain/pricing/dateHelpers';
 import {
   AdminMlContinualError,
   BASELINE_MODEL_VERSION,
@@ -216,7 +217,7 @@ function toFiniteNumber(value: unknown): number | null {
 
 function toIso(value: Date | string | null): string | null {
   if (value === null) return null;
-  const date = value instanceof Date ? value : new Date(value);
+  const date = value instanceof Date ? value : parseDbTimestamp(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 

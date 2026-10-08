@@ -42,6 +42,28 @@ export function getBookingExtensionStatusLabel(status: BookingExtensionStatus | 
   }
 }
 
+/**
+ * Teks badge perpanjangan untuk tabel daftar transaksi — dipendekkan supaya
+ * kolom Status tidak meluap dan tombol aksi tetap satu baris.
+ * Keterangan lengkap tetap tersedia lewat tooltip `title` di halaman.
+ */
+export function getBookingExtensionTableBadgeLabel(status: BookingExtensionStatus | string): string {
+  switch (status) {
+    case 'AWAITING_PAYMENT':
+      return 'Perpanjangan: Belum Bayar';
+    case 'SUBMITTED':
+      return 'Perpanjangan: Verifikasi';
+    case 'VERIFIED':
+      return 'Perpanjangan: Selesai';
+    case 'REJECTED':
+      return 'Perpanjangan: Ditolak';
+    case 'CANCELLED':
+      return 'Perpanjangan: Batal';
+    default:
+      return 'Perpanjangan';
+  }
+}
+
 export function getBookingExtensionBadgeClass(status: BookingExtensionStatus | string): string {
   switch (status) {
     case 'AWAITING_PAYMENT':

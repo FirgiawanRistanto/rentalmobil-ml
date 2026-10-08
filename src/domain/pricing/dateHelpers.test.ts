@@ -6,6 +6,7 @@ import {
   doRentalPeriodsOverlap,
   isPeakSeasonDate,
   isWeekendPickup,
+  parseDbTimestamp,
   toDateOnlyString,
 } from './dateHelpers';
 import { PricingDomainError } from './errors';
@@ -47,6 +48,23 @@ describe('date feature helpers', () => {
     assert.equal(isPeakSeasonDate('2026-07-01'), true);
     assert.equal(isPeakSeasonDate('2026-12-01'), true);
     assert.equal(isPeakSeasonDate('2026-08-01'), false);
+  });
+});
+
+describe('parseDbTimestamp', () => {
+  it('reads zoneless driver literals as UTC instants, not local time', () => {
+    // Literal timestamp tanpa zona ditulis driver sebagai UTC; new Date(string)
+    // menganggapnya lokal dan menggeser tanggal WIB satu hari ke belakang.
+    assert.equal(parseDbTimestamp('2026-10-10 17:00:00').getTime(), Date.UTC(2026, 9, 10, 17));
+    assert.equal(parseDbTimestamp('2026-10-10T17:00:00').getTime(), Date.UTC(2026, 9, 10, 17));
+  });
+
+  it('keeps zoned driver literals intact', () => {
+    assert.equal(
+      parseDbTimestamp('2026-10-06 12:26:42.027+07').getTime(),
+      Date.UTC(2026, 9, 6, 5, 26, 42, 27),
+    );
+    assert.equal(parseDbTimestamp('2026-10-10T17:00:00Z').getTime(), Date.UTC(2026, 9, 10, 17));
   });
 });
 

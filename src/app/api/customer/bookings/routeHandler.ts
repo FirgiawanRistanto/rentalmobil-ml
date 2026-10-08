@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { CustomerBookingsResponse } from '../../../../lib/customerDashboardUi';
+import type { CustomerBookingsQuery, CustomerBookingsResponse } from '../../../../lib/customerDashboardUi';
 import { PaymentServiceError } from '../../../../services/paymentService';
 import { listCustomerDashboardBookings } from '../../../../services/customerBookingDashboardService';
 
@@ -11,7 +11,10 @@ interface CustomerBookingsRouteUser {
 }
 
 interface CustomerBookingsRouteService {
-  listCustomerDashboardBookings(user: CustomerBookingsRouteUser | null): Promise<CustomerBookingsResponse>;
+  listCustomerDashboardBookings(
+    user: CustomerBookingsRouteUser | null,
+    dependencies?: { query?: URLSearchParams | Partial<CustomerBookingsQuery> },
+  ): Promise<CustomerBookingsResponse>;
 }
 
 interface CustomerBookingsRouteDependencies {
@@ -50,10 +53,12 @@ export function createGetCustomerBookingsHandler(
   const service = dependencies.service ?? { listCustomerDashboardBookings };
   const getCurrentUser = dependencies.getCurrentUser ?? getSessionUser;
 
-  return async function getCustomerBookings(): Promise<NextResponse> {
+  return async function getCustomerBookings(request?: Request): Promise<NextResponse> {
     try {
       const user = await getCurrentUser();
-      const result = await service.listCustomerDashboardBookings(user);
+      // Halaman riwayat booking dibaca dari query string (?page=&pageSize=).
+      const query = request ? new URL(request.url).searchParams : undefined;
+      const result = await service.listCustomerDashboardBookings(user, { query });
 
       return NextResponse.json(result);
     } catch (error) {

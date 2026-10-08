@@ -3,14 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { formatRupiahId } from '@/lib/paymentUi';
 import { LATE_FINE_RATE_MAX, LATE_FINE_RATE_MIN } from '@/lib/pricingSettingsUi';
 import {
   PricingSettingsClientError,
   updatePricingSettingsClient,
 } from '@/services/pricingSettingsClient';
-
-const SAMPLE_DAILY_RATE = 500_000;
 
 export default function AdminPricingSettingsForm({ initialValue }: { initialValue: number }) {
   const router = useRouter();
@@ -23,7 +20,6 @@ export default function AdminPricingSettingsForm({ initialValue }: { initialValu
     Number.isInteger(parsedRate) &&
     parsedRate >= LATE_FINE_RATE_MIN &&
     parsedRate <= LATE_FINE_RATE_MAX;
-  const sampleFine = isValid ? Math.round((SAMPLE_DAILY_RATE * parsedRate) / 100) : null;
 
   async function handleSave() {
     if (isSaving) {
@@ -65,11 +61,6 @@ export default function AdminPricingSettingsForm({ initialValue }: { initialValu
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <h2 className="text-base font-black text-slate-900 dark:text-white">Denda Keterlambatan Pengembalian</h2>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Persentase tarif harian tersnap (harga yang disepakati customer) yang dikenakan per hari
-        keterlambatan. Contoh: 100% berarti denda per hari setara satu hari sewa. Perubahan hanya
-        berlaku untuk denda baru — denda yang sudah dinilai tidak berubah.
-      </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -98,12 +89,7 @@ export default function AdminPricingSettingsForm({ initialValue }: { initialValu
         </button>
       </div>
 
-      {sampleFine !== null ? (
-        <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 dark:bg-slate-800/70 dark:text-slate-300">
-          Contoh: tarif harian {formatRupiahId(SAMPLE_DAILY_RATE)} → denda{' '}
-          {formatRupiahId(sampleFine)} per hari telat ({parsedRate}% dari tarif harian).
-        </p>
-      ) : (
+      {isValid ? null : (
         <p className="mt-4 text-sm font-semibold text-red-600">
           Nilai harus bilangan bulat antara {LATE_FINE_RATE_MIN} sampai {LATE_FINE_RATE_MAX}.
         </p>

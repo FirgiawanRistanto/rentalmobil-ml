@@ -1,11 +1,14 @@
 import {
   buildCustomerBookingsEndpoint,
+  type CustomerBookingsQuery,
   type CustomerBookingsResponse,
   type CustomerDashboardBooking,
 } from '../lib/customerDashboardUi';
 import { PaymentUiError } from '../lib/paymentUi';
 
 export interface CustomerBookingDashboardClientOptions {
+  page?: number;
+  pageSize?: number;
   fetchFn?: typeof fetch;
 }
 
@@ -75,7 +78,13 @@ function isCustomerBookingsResponse(value: unknown): value is CustomerBookingsRe
     typeof summary.activeBookings === 'number' &&
     typeof summary.completedOrConfirmedBookings === 'number' &&
     Array.isArray(value.bookings) &&
-    value.bookings.every(isDashboardBooking)
+    value.bookings.every(isDashboardBooking) &&
+    typeof value.page === 'number' &&
+    typeof value.pageSize === 'number' &&
+    typeof value.totalItems === 'number' &&
+    typeof value.totalPages === 'number' &&
+    typeof value.hasNextPage === 'boolean' &&
+    typeof value.hasPreviousPage === 'boolean'
   );
 }
 
@@ -101,7 +110,15 @@ export async function listCustomerDashboardBookingsClient(
   options: CustomerBookingDashboardClientOptions = {},
 ): Promise<CustomerBookingsResponse> {
   const fetchFn = options.fetchFn ?? fetch;
-  const response = await fetchFn(buildCustomerBookingsEndpoint(), {
+  const query: Partial<CustomerBookingsQuery> = {};
+  if (options.page) {
+    query.page = options.page;
+  }
+  if (options.pageSize) {
+    query.pageSize = options.pageSize;
+  }
+
+  const response = await fetchFn(buildCustomerBookingsEndpoint(query), {
     method: 'GET',
     headers: { Accept: 'application/json' },
   });

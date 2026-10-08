@@ -4,7 +4,7 @@ import path from 'node:path';
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
 import { bookingPayments, bookings } from '../db/schema';
-import { toDateOnlyString } from '../domain/pricing/dateHelpers';
+import { parseDbTimestamp, toDateOnlyString } from '../domain/pricing/dateHelpers';
 
 export const MANUAL_BANK_TRANSFER_METHOD = 'BANK_TRANSFER_MANUAL';
 export const PAYMENT_REVIEW_EXPIRY_HOURS = 24;
@@ -378,7 +378,7 @@ function normalizeDatabaseDate(value: Date | string | null | undefined): Date | 
     .replace(/(\.\d{3})\d+/, '$1')
     .replace(/([+-]\d{2})$/, '$1:00')
     .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
-  const date = new Date(normalized);
+  const date = parseDbTimestamp(normalized);
 
   if (Number.isNaN(date.getTime())) {
     throw new Error('Invalid timestamp returned by database.');
