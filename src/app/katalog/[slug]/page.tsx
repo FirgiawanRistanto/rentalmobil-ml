@@ -154,7 +154,7 @@ export default function CarDetailPage() {
           <section className="rounded-xl bg-white p-6 shadow-sm dark:bg-slate-900">
             <h3 className="mb-1 flex items-center gap-2 text-lg font-bold">
               <span className="material-symbols-outlined text-primary">directions_car</span>
-              Unit Armada (No. Polisi)
+              Unit Mobil (No. Polisi)
             </h3>
             <p className="mb-4 text-sm text-slate-500">
               Daftar unit mobil yang dapat dipilih saat melakukan booking.

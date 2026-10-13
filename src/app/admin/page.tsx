@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
           <div>
             <h1 className="text-lg font-black text-slate-900 dark:text-white">Dashboard Admin</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Ringkasan booking, pembayaran, dan armada dari data transaksi v4.
+              Ringkasan booking, pembayaran, dan mobil dari data transaksi v4.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
                 />
                 <MetricCard
                   icon="directions_car"
-                  label="Unit Armada Aktif"
+                  label="Unit Mobil Aktif"
                   value={metrics.activeFleetUnits}
                   helper={`${metrics.availableFleetUnitsNow} unit tersedia hari ini`}
                   tone="slate"

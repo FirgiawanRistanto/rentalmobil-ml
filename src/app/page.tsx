@@ -53,7 +53,7 @@ export default async function HomePage() {
       <section className="py-20 px-6 md:px-12 lg:px-20 w-full">
         <div className="flex justify-between items-end mb-12">
           <div className="flex flex-col gap-2">
-            <h2 className="text-slate-900 dark:text-white text-3xl md:text-5xl font-black tracking-tight">Armada Unggulan</h2>
+            <h2 className="text-slate-900 dark:text-white text-3xl md:text-5xl font-black tracking-tight">Mobil Unggulan</h2>
             <p className="text-slate-600 dark:text-slate-400 text-lg">Pilihan unit terbaru dengan kondisi prima untuk kenyamanan Anda.</p>
           </div>
           <Link className="hidden md:flex items-center gap-2 text-primary font-bold hover:underline text-lg" href="/katalog">

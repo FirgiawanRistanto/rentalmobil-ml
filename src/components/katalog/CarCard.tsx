@@ -18,19 +18,19 @@ export default function CarCard({ car }: CarCardProps) {
         />
         
         {car.status === 'available' && (
-          <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Available</div>
+          <div className="absolute top-3 right-3 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Tersedia</div>
         )}
         {car.status === 'booked' && (
-          <div className="absolute top-3 right-3 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Booked</div>
+          <div className="absolute top-3 right-3 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Dibooking</div>
         )}
         {car.status === 'pending' && (
-          <div className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Pending</div>
+          <div className="absolute top-3 right-3 bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded">Menunggu Konfirmasi</div>
         )}
       </div>
       
       <div className="p-5 flex flex-col flex-1">
         <h3 className="text-slate-900 dark:text-white text-lg font-bold">{car.name}</h3>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{car.type} • {car.transmission} • {car.capacity} Seater</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{car.type} • {car.transmission} • {car.capacity} Kursi</p>
         
         <div className="mt-4 flex items-center justify-between">
           <p className="text-primary dark:text-blue-400 font-bold text-lg">

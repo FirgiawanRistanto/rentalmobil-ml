@@ -84,7 +84,7 @@ describe('booking fine ui', () => {
 
   it('labels statuses and maps error codes to friendly messages', () => {
     assert.equal(getBookingFineStatusLabel('AWAITING_PAYMENT'), 'Menunggu Pembayaran');
-    assert.equal(getBookingFineStatusLabel('VERIFIED'), 'Disetujui — Masuk Tagihan');
+    assert.equal(getBookingFineStatusLabel('VERIFIED'), 'Disetujui');
     assert.equal(getBookingFineStatusLabel('REJECTED'), 'Dibatalkan');
     assert.match(getBookingFineBadgeClass('SUBMITTED'), /blue/);
     assert.match(getBookingFineBadgeClass('AWAITING_PAYMENT'), /amber/);

@@ -95,7 +95,7 @@ export function getBookingFineStatusLabel(status: BookingFineStatus | string): s
     case 'SUBMITTED':
       return 'Menunggu Verifikasi Admin';
     case 'VERIFIED':
-      return 'Disetujui — Masuk Tagihan';
+      return 'Disetujui';
     case 'REJECTED':
       return 'Dibatalkan';
     default:

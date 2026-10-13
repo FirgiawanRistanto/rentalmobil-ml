@@ -48,7 +48,7 @@ export default function Hero() {
 
         {/* Stats */}
         <div className="mt-16 grid grid-cols-3 gap-6 max-w-lg mx-auto animate-fade-in" style={{ animationDelay: '0.5s' }}>
-          <Stat value="9" label="Unit Armada" />
+          <Stat value="9" label="Unit Mobil" />
           <Stat value="AI" label="Smart Price" />
           <Stat value="24/7" label="Layanan" />
         </div>
